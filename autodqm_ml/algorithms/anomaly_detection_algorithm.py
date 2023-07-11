@@ -83,9 +83,15 @@ class AnomalyDetectionAlgorithm():
        
         # Set helpful metadata
         for histogram, histogram_info in self.histograms.items():
+            #print("RW print df here")
+            #print(histogram)
             self.histograms[histogram]["name"] = histogram.replace("/", "").replace(" ","")
+            #print(self.histograms[histogram]["name"])
             self.histogram_name_map[self.histograms[histogram]["name"]] = histogram
+            #print(df)
 
+            #print("RW print df here")
+            #print(df[histogram])
             a = awkward.to_numpy(df[histogram][0])
             self.histograms[histogram]["shape"] = a.shape
             self.histograms[histogram]["n_dim"] = len(a.shape)

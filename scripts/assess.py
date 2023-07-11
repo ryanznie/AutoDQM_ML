@@ -3,6 +3,7 @@ import json
 import argparse
 import awkward
 import numpy
+import pandas as pd
 
 from autodqm_ml.utils import setup_logger
 from autodqm_ml.utils import expand_path
@@ -35,7 +36,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--algorithms",
-        help = "csv list of algorithmn names to assess",
+        help = "csv list of algorithm names to assess",
         type = str,
         required = False,
         default = None
@@ -101,11 +102,10 @@ def main(args):
     log_file = "%s/fetch_data_log_%s.txt" % (args.output_dir, "assess")
     logger = setup_logger(logger_mode, log_file)
 
-
     histograms = { x : {"algorithms" : {}} for x in args.histograms.split(",") }
 
     runs = awkward.from_parquet(args.input_file)
-
+    
     if args.algorithms is not None:
         algorithms = args.algorithms.split(",")
     else:
@@ -122,19 +122,28 @@ def main(args):
     N = 5
     for h, info in histograms.items():
         for algorithm, algorithm_info in info["algorithms"].items():
-            runs_sorted = runs[awkward.argsort(runs[algorithm_info["score"]], ascending=False)]
-            logger.info("[assess.py] For histogram '%s', algorithm '%s', the mean +/- std anomaly score is: %.2e +/- %.2e." % (h, algorithm, awkward.mean(runs[algorithm_info["score"]]), awkward.std(runs[algorithm_info["score"]])))
+            #runs_sorted = runs[awkward.argsort(runs[algorithm_info["score"]], ascending=False)]
+            runs_sorted = runs
+            #logger.info("[assess.py] For histogram '%s', algorithm '%s', the mean +/- std anomaly score is: %.2e +/- %.2e." % (h, algorithm, awkward.mean(runs[algorithm_info["score"]]), awkward.std(runs[algorithm_info["score"]])))
             #logger.info("[assess.py] For histogram '%s', algorithm '%s', the runs with the highest anomaly scores are: " % (h, algorithm)) 
-            logger.info("\t The runs with the highest anomaly scores are:")
-            for i in range(N):
-                logger.info("\t Run number : %d, Anomaly Score : %.2e" % (runs_sorted.run_number[i], runs_sorted[algorithm_info["score"]][i]))
+            #logger.info("\t The runs with the highest anomaly scores are:")
+            if algorithm == "Run2022C_test_ae": # "Run2022C_test_ae" "Run2022C_test_pca"
+                if N == 5:
+                    sse_df = pd.DataFrame(runs_sorted.run_number)
+                    sse_df.columns = ["run_number"]
+                    N = N + 1
+                sse_df[h] = runs_sorted[algorithm_info["score"]]
+    sse_df.to_csv("scores.csv",index=False)
+            #for i in range(N):
+                #logger.info("\t Run number : %d, Anomaly Score : %.2e" % (runs_sorted.run_number[i], runs_sorted[algorithm_info["score"]][i]))
+                
+    #sse_df.to_csv('bad_runs_sse_scores.csv',index=False)
 
     # Histogram of sse for algorithms
     splits = {
             "train_label" : [("train", 0), ("test", 1)],
             "label" : [("anomalous", kANOMALOUS), ("good", kGOOD)]
     }
- 
     for h, info in histograms.items():
         for split, split_info in splits.items():
             recos_by_label = { k : {} for k,v in info["algorithms"].items() }
@@ -144,20 +153,22 @@ def main(args):
                     logger.warning("[assess.py] For histogram '%s', no runs belong to the set '%s', skipping making a histogram of SSE for this." % (h, name))
                     continue
                 recos = {}
+                #print(runs_set)
+                #print(info['algorithms'].items())
                 for algorithm, algorithm_info in info["algorithms"].items():
                     recos[algorithm] = { "score" : runs_set[algorithm_info["score"]] }
                     recos_by_label[algorithm][name] = { "score" : runs_set[algorithm_info["score"]] }
 
                 h_name = h.replace("/", "").replace(" ", "")
                 save_name = args.output_dir + "/" + h_name + "_sse_%s_%s.pdf" % (split, name)
-                make_sse_plot(h_name, recos, save_name)
+                #print(histograms.items('original'))
+                #make_sse_plot(h_name, recos, save_name)
 
             for algorithm, recos_alg in recos_by_label.items():
                 if not recos_alg:
                     continue
-                save_name = args.output_dir + "/" + h_name + "_sse_%s_%s.pdf" % (algorithm, split)
-                make_sse_plot(h_name, recos_alg, save_name) 
-
+                #save_name = args.output_dir + "/" + h_name + "_sse_%s_%s.pdf" % (algorithm, split)
+                #make_sse_plot(h_name, recos_alg, save_name) 
 
     # ROC curves (if there are labeled runs)
     has_labeled_runs = True
@@ -211,9 +222,9 @@ def main(args):
                 recos[algorithm] = { "reco" : run[algorithm_info["reco"]], "score" : run[algorithm_info["score"]]}
             h_name = h.replace("/", "").replace(" ", "")
             save_name = args.output_dir + "/" + h_name + "_Run%d.pdf" % run_number
-            make_original_vs_reconstructed_plot(h_name, original, recos, run_number, save_name) 
+            #make_original_vs_reconstructed_plot(h_name, original, recos, run_number, save_name) 
 
-    logger.info("[assess.py] Plots written to directory '%s'." % (args.output_dir))
+    #logger.info("[assess.py] Plots written to directory '%s'." % (args.output_dir))
 
     if args.make_webpage:
         os.system("cp web/index.php %s" % args.output_dir)

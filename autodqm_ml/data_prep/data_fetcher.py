@@ -4,6 +4,8 @@ import uproot
 import numpy
 import pandas
 import awkward
+from collections import defaultdict
+import itertools
 from tqdm import tqdm
 
 import logging
@@ -133,8 +135,28 @@ class DataFetcher():
                 for file in files:
                     logger.debug("\t %s" % file)
 
-                self.files[pd][year] = files
-                self.files["all"] += files
+                # RW Take prompt reco ROOT files from EOS to avoid degenerate re-reco files
+                files = [i for i in files if "PromptReco" not in i]
+                    
+                all_runs = [i.partition("DQM_V0")[2][0:14] for i in files]
+                unique_runs = list(set(all_runs))
+
+                # find list of runs unique to each month by checking their presence is not in the most recent set of files
+
+                unique_files = []
+                for unique_run in unique_runs:
+                    for eachFile in files:
+                        if unique_run in eachFile:
+                            unique_files.append(eachFile)
+                            break
+
+                print("Unique files:")
+                print(len(files))
+                print(len(unique_files))
+                print(unique_files)
+
+                self.files[pd][year] = unique_files
+                self.files["all"] += unique_files
 
 
     @staticmethod
@@ -172,6 +194,8 @@ class DataFetcher():
             if dir == "":
                 continue
             if ".root" in dir: # this is already a root file
+                if ".dqminfo" in dir:
+                    continue
                 file = dir
                 if not any(prod in file for prod in datasets["productions"]): # check if file matches any of the specified productions
                     continue
@@ -190,7 +214,7 @@ class DataFetcher():
                 files += DataFetcher.get_files(dir, year, datasets, short) # run recursively on subdirs
 
             if short:
-                if len(files) > 2:
+                if len(files) > 20:
                     break 
 
         for idx, file in enumerate(files):
@@ -327,7 +351,6 @@ class DataFetcher():
         # this is trivial now, but may get more complicated
         return base_path.format(run_number) + subsystem + "/" + histogram
 
-
     def write_data(self):
         """
         Write dataframe -> parquet file for each primary dataset.
@@ -338,13 +361,41 @@ class DataFetcher():
         """
         os.system("mkdir -p %s/" % self.output_dir) 
 
+        # RW adapted to create a single Parquet file containing all collections chosen for use in training later (SingleMuon becomes Muon during Run 2022C)
+        array_of_dfs = []
         for pd in self.pds:
+
             array = awkward.Array(self.data[pd])
+            
+            if pd == "SingleMuon":
+                self.data[pd]['collection'] = ["Muon"] * len(self.data[pd]['year'])
+            else:
+                self.data[pd]['collection'] = [pd] * len(self.data[pd]['year'])
+            
+            array_of_dfs.append(self.data[pd])
+            #print(self.data[pd])
             if array is not None:
                 output_file = "%s/%s.parquet" % (self.output_dir, pd)
                 logger.info("[DataFetcher : write_data] Writing histograms to output file '%s'" % (output_file))
                 awkward.to_parquet(array, output_file) 
 
+        pdalldict = defaultdict(list)
+
+        for d in array_of_dfs:
+            for key, value in d.items():
+                pdalldict[key].append(value)
+
+        for key, value in pdalldict.items():
+            pdalldict[key] = [K for sublist in value for K in sublist]
+
+        del pdalldict['collection']
+        #print(pdalldict)
+        bigarray = awkward.Array(pdalldict)
+
+        if bigarray is not None:
+            output_file = "%s/%s.parquet" % (self.output_dir, "AllCollections")
+            logger.info("[DataFetcher : write_data] Writing histograms to output file '%s'" % (output_file))
+            awkward.to_parquet(bigarray, output_file)
 
     def write_summary(self):
         """

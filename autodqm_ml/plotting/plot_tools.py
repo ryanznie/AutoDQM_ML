@@ -76,10 +76,32 @@ def make_original_vs_reconstructed_plot1d(name, original, recos, run, save_name,
     h_orig = Hist1D(original, bins = bins, label = "original")
     h_orig._counts = original
     h_reco = []
+    bbc = {reco: [] for reco in recos.keys()}
+    nfp = {reco: [] for reco in recos.keys()}
+    print("Run: "+str(run))
     for reco, info in recos.items():
         h = Hist1D(info["reco"], bins = bins, label = "%s [sse : %.2E]" % (reco, info["score"]))
         h._counts = info["reco"]
         h_reco.append(h)
+        count_bad_bin = np.maximum(np.abs(original - info["reco"]),0.001)
+        bad_bin_size = (np.asarray(count_bad_bin) > 0.001).sum()
+        print("ALGORITHM: "+reco)
+        if bad_bin_size > 0.1*len(info["reco"]):
+            #print("ANOMALY IN BBC: Bad bin count greater than 10 ("+str(bad_bin_size)+") in run "+str(run))
+            print("BBC: "+str(bad_bin_size))
+        bbc[reco] = bad_bin_size
+ 
+        reconozero = np.asarray(info["reco"])
+        reconozero[reconozero < 0] = 0
+        nfp_vals = np.asarray((original - reconozero)**2)
+        for i in range(len(original)):
+            if reconozero[i]-0.01*reconozero[i] < original[i] < reconozero[i]+0.01*reconozero[i]:
+                nfp_vals[i] = 0
+        nfp_tot = nfp_vals.sum()
+        if nfp_tot > 1e-4:
+            #print("ANOMALY IN 95% DEVIATION: SSE counted at the 99% percentile greater than 1e-6 ("+str(nfp_tot)+") in run "+str(run))
+            print("OPD: "+str(nfp_tot))
+        nfp[reco] = nfp_tot
 
     fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,6), gridspec_kw=dict(height_ratios=[3, 1]))
     plt.grid()
@@ -104,7 +126,7 @@ def make_original_vs_reconstructed_plot1d(name, original, recos, run, save_name,
     if log_y:
         ax1.set_yscale("log")
 
-    logger.debug("[plot_tools.py : make_original_vs_reconstructed_plot1d] Writing plot to file '%s'. " % (save_name))
+    #logger.debug("[plot_tools.py : make_original_vs_reconstructed_plot1d] Writing plot to file '%s'. " % (save_name))
     plt.savefig(save_name)
     plt.savefig(save_name.replace(".pdf", ".png"))
     plt.clf()
@@ -134,6 +156,7 @@ def plot1D(original_hist, reconstructed_hist, run, hist_path, algo, threshold):
     # plot original/recon 
     ax.bar(binEdges, original_hist, alpha=0.5, label='original', width=width)
     ax.bar(binEdges, reconstructed_hist, alpha=0.5, label='reconstructed', width=width)
+
     plotname = hist_path.split('/')[-1]
     ax.set_title(f'{plotname} {run} {algo}')
     leg = ax.legend(loc='upper right')
@@ -177,7 +200,7 @@ def plotMSESummary(original_hists, reconstructed_hists, threshold, hist_paths, r
     ## convert to awkward array as not all hists have the same length
     original_hists = awkward.Array(original_hists)
     reconstructed_hists = awkward.Array(reconstructed_hists)
-    
+
     fig, ax = plt.subplots()
     mse = np.mean(np.square(original_hists - reconstructed_hists), axis=1)
     
@@ -208,7 +231,6 @@ def plotMSESummary(original_hists, reconstructed_hists, threshold, hist_paths, r
     )
     props = dict(boxstyle='round', facecolor='white', alpha=0.5)
     ax.text(1.1*max(mse), 0.5*max(hist), text, wrap=True, bbox=props)
-    
     fig.savefig(f'plots/{algo}/MSE_Summary.png', bbox_inches='tight')
 
 
