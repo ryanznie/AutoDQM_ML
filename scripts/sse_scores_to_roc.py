@@ -65,22 +65,42 @@ def main(infile):
     pct_99_good = []
     pct_95_good = []
     pct_90_good = []
+    pct_80_good = []
+    pct_70_good = []
+    pct_60_good = []
+    pct_40_good = []
+    pct_20_good = []
     med_good = []
 
     pct_99_bad = []
     pct_95_bad = []
     pct_90_bad = []
+    pct_80_bad = []
+    pct_70_bad = []
+    pct_60_bad = []
+    pct_40_bad = []
+    pct_20_bad = []
     med_bad = []
 
     med_good = J_good[hist_cols].median().values
     pct_99_good = J_good[hist_cols].quantile(q=0.99).values
     pct_95_good	= J_good[hist_cols].quantile(q=0.95).values
     pct_90_good	= J_good[hist_cols].quantile(q=0.90).values
+    pct_80_good  = J_good[hist_cols].quantile(q=0.80).values
+    pct_70_good  = J_good[hist_cols].quantile(q=0.70).values
+    pct_60_good  = J_good[hist_cols].quantile(q=0.60).values
+    pct_40_good  = J_good[hist_cols].quantile(q=0.40).values
+    pct_20_good  = J_good[hist_cols].quantile(q=0.20).values
 
     med_bad = J_bad[hist_cols].median().values
     pct_99_bad = J_bad[hist_cols].quantile(q=0.99).values
     pct_95_bad = J_bad[hist_cols].quantile(q=0.95).values
     pct_90_bad	= J_bad[hist_cols].quantile(q=0.90).values
+    pct_80_bad  = J_bad[hist_cols].quantile(q=0.80).values
+    pct_70_bad  = J_bad[hist_cols].quantile(q=0.70).values
+    pct_60_bad  = J_bad[hist_cols].quantile(q=0.60).values
+    pct_40_bad  = J_bad[hist_cols].quantile(q=0.40).values
+    pct_20_bad  = J_bad[hist_cols].quantile(q=0.20).values
 
     null_set_good = med_good*0
     med_0p3_good = med_good*0.3
@@ -104,6 +124,11 @@ def main(infile):
     p99g_hc = count_hists_above(J_good, pct_99_good)
     p95g_hc = count_hists_above(J_good, pct_95_good)
     p90g_hc = count_hists_above(J_good, pct_90_good)
+    p80g_hc = count_hists_above(J_good, pct_80_good)
+    p70g_hc = count_hists_above(J_good, pct_70_good)
+    p60g_hc = count_hists_above(J_good, pct_60_good)
+    p40g_hc = count_hists_above(J_good, pct_40_good)
+    p20g_hc = count_hists_above(J_good, pct_20_good)
     nsg_hc = count_hists_above(J_good, null_set_good)
     m03g_hc = count_hists_above(J_good, med_0p3_good)
     m06g_hc = count_hists_above(J_good, med_0p6_good)
@@ -116,6 +141,11 @@ def main(infile):
     p99b_hc = count_hists_above(J_bad, pct_99_bad)
     p95b_hc = count_hists_above(J_bad, pct_95_bad)
     p90b_hc = count_hists_above(J_bad, pct_90_bad)
+    p80b_hc = count_hists_above(J_bad, pct_80_bad)
+    p70b_hc = count_hists_above(J_bad, pct_70_bad)
+    p60b_hc = count_hists_above(J_bad, pct_60_bad)
+    p40b_hc = count_hists_above(J_bad, pct_40_bad)
+    p20b_hc = count_hists_above(J_bad, pct_20_bad)
     nsb_hc = count_hists_above(J_bad, null_set_bad)
     m03b_hc = count_hists_above(J_bad, med_0p3_bad)
     m06b_hc = count_hists_above(J_bad, med_0p6_bad)
@@ -128,8 +158,8 @@ def main(infile):
     mMF_ROC_good_Y = sorted([nsg_hc,m03g_hc,m06g_hc,m09g_hc,m10g_hc,m12g_hc,m15g_hc,m18g_hc,0.0])
     mMF_ROC_bad_X = sorted([nsb_hc,m03b_hc,m06b_hc,m09b_hc,m10b_hc,m12b_hc,m15b_hc,m18b_hc,0.0])
 
-    pMF_ROC_good_Y = sorted([nsg_hc,p99g_hc,p95g_hc,p90g_hc,0.0])
-    pMF_ROC_bad_X = sorted([nsb_hc,p99b_hc,p95b_hc,p90b_hc,0.0])
+    pMF_ROC_good_Y = sorted([nsg_hc,p99g_hc,p95g_hc,p90g_hc,p80g_hc,p70g_hc,p60g_hc,p40g_hc,p20g_hc,0.0])
+    pMF_ROC_bad_X = sorted([nsb_hc,p99b_hc,p95b_hc,p90b_hc,p80b_hc,p70b_hc,p60b_hc,p40b_hc,p20b_hc,0.0])
 
     # Required as the AE isn't very sensitive at different thresholds and will cause the make_interp_spline function throw and error
     #[[good_bad_arrays[i] += 0.00001 if (good_bad_arrays[i] == good_bad_arrays[i-1]) for i in range(1, len(good_bad_arrays))] for good_bad_arrays in [mMF_ROC_good_Y,mMF_ROC_bad_X,pMF_ROC_good_Y,pMF_ROC_bad_X]]
@@ -150,7 +180,7 @@ def main(infile):
     ax.plot(pMF_ROC_bad_X,pMF_ROC_good_Y, '-g^', mfc='orange', mec='k', markersize=8, linewidth=1, label='SSE above quantile values')
     ax.set_xlim([0, max(mMF_ROC_bad_X+pMF_ROC_bad_X)])
     ax.set_ylim([0, max(mMF_ROC_good_Y+pMF_ROC_good_Y)])
-
+    ax.axline((0, 0), slope=(max(mMF_ROC_good_Y+pMF_ROC_good_Y)/max(mMF_ROC_bad_X+pMF_ROC_bad_X)), linestyle='--',linewidth=0.5,color='gray')
     ax.annotate("Algorithm: " + I, xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
 
     plt.legend(loc='lower right')
