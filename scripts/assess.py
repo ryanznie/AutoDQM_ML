@@ -105,17 +105,17 @@ def main(args):
     histograms = { x : {"algorithms" : {}} for x in args.histograms.split(",") }
 
     runs = awkward.from_parquet(args.input_file)
-    
+
     if args.algorithms is not None:
         algorithms = args.algorithms.split(",")
     else:
         algorithms = None
 
     histograms = infer_algorithms(runs, histograms, algorithms)
-    for h, info in histograms.items():
-        logger.debug("[assess.py] For histogram '%s', found the following anomaly detection algorithms:" % (h))
-        for a, a_info in info["algorithms"].items():
-            logger.debug("\t Algorithm '%s' with score in field '%s' and reconstructed histogram in field '%s'" % (a, a_info["score"], str(a_info["reco"])))
+    #for h, info in histograms.items():
+    #    logger.debug("[assess.py] For histogram '%s', found the following anomaly detection algorithms:" % (h))
+    #    for a, a_info in info["algorithms"].items():
+    #        logger.debug("\t Algorithm '%s' with score in field '%s' and reconstructed histogram in field '%s'" % (a, a_info["score"], str(a_info["reco"])))
     
 
     # Print out runs with N highest sse scores for each histogram
@@ -124,21 +124,34 @@ def main(args):
         for algorithm, algorithm_info in info["algorithms"].items():
             #runs_sorted = runs[awkward.argsort(runs[algorithm_info["score"]], ascending=False)]
             runs_sorted = runs
+            #print(runs_sorted)
             #logger.info("[assess.py] For histogram '%s', algorithm '%s', the mean +/- std anomaly score is: %.2e +/- %.2e." % (h, algorithm, awkward.mean(runs[algorithm_info["score"]]), awkward.std(runs[algorithm_info["score"]])))
             #logger.info("[assess.py] For histogram '%s', algorithm '%s', the runs with the highest anomaly scores are: " % (h, algorithm)) 
             #logger.info("\t The runs with the highest anomaly scores are:")
-            if algorithm == "Run2022C_test_ae": # "Run2022C_test_ae" "Run2022C_test_pca"
-                if N == 5:
-                    sse_df = pd.DataFrame(runs_sorted.run_number)
-                    sse_df.columns = ["run_number"]
-                    N = N + 1
-                sse_df[h] = runs_sorted[algorithm_info["score"]]
-    sse_df.to_csv("scores.csv",index=False)
-            #for i in range(N):
-                #logger.info("\t Run number : %d, Anomaly Score : %.2e" % (runs_sorted.run_number[i], runs_sorted[algorithm_info["score"]][i]))
-                
-    #sse_df.to_csv('bad_runs_sse_scores.csv',index=False)
 
+            if N == 5:
+                sse_df_ae = pd.DataFrame(runs_sorted.run_number)
+                sse_df_ae.columns = ["run_number"]
+                sse_df_ae['algo'] = 'ae'
+
+                sse_df_pca = pd.DataFrame(runs_sorted.run_number)
+                sse_df_pca.columns = ["run_number"]
+                sse_df_pca['algo'] = 'pca'
+                N = N + 1
+
+            if any(x in algorithm.lower() for x in ["ae","autoencoder"]):
+                sse_df_ae[h] = runs_sorted[algorithm_info["score"]]
+            
+            if any(x in algorithm.lower() for x in ["pca"]):
+       	       	sse_df_pca[h] = runs_sorted[algorithm_info["score"]]
+
+            #for i in range(N):
+            #    logger.info("\t Run number : %d, Anomaly Score : %.2e" % (runs_sorted.run_number[i], runs_sorted[algorithm_info["score"]][i]))
+
+    sse_df = pd.concat([sse_df_ae,sse_df_pca]).reset_index(drop=True)
+    print(sse_df['algo'])
+    sse_df.to_csv(args.output_dir + "/bad_runs_sse_scores.csv",index=False)
+                
     # Histogram of sse for algorithms
     splits = {
             "train_label" : [("train", 0), ("test", 1)],
@@ -150,7 +163,7 @@ def main(args):
             for name, id in split_info:
                 runs_set = runs[runs[split] == id]
                 if len(runs_set) == 0:
-                    logger.warning("[assess.py] For histogram '%s', no runs belong to the set '%s', skipping making a histogram of SSE for this." % (h, name))
+                #    logger.warning("[assess.py] For histogram '%s', no runs belong to the set '%s', skipping making a histogram of SSE for this." % (h, name))
                     continue
                 recos = {}
                 #print(runs_set)
@@ -186,13 +199,13 @@ def main(args):
             roc_results[h] = {}
             for algorithm, algorithm_info in info["algorithms"].items():
                 pred = labeled_runs[algorithm_info["score"]]
-                roc_results[h][algorithm] = calc_roc_and_unc(labeled_runs.label, pred)
+                #roc_results[h][algorithm] = calc_roc_and_unc(labeled_runs.label, pred)
 
-            h_name = h.replace("/", "").replace(" ", "")
-            save_name = args.output_dir + "/" + h_name + "_roc.pdf"
-            plot_roc_curve(h_name, roc_results[h], save_name)
-            plot_roc_curve(h_name, roc_results[h], save_name.replace(".pdf", "_log.pdf"), log = True)
-            print_eff_table(h_name, roc_results[h])
+            #h_name = h.replace("/", "").replace(" ", "")
+            #save_name = args.output_dir + "/" + h_name + "_roc.pdf"
+            #plot_roc_curve(h_name, roc_results[h], save_name)
+            #plot_roc_curve(h_name, roc_results[h], save_name.replace(".pdf", "_log.pdf"), log = True)
+            #print_eff_table(h_name, roc_results[h])
             
 
     # Plots of original/reconstructed histograms
@@ -200,14 +213,14 @@ def main(args):
         random_runs = True
         selected_runs_idx = numpy.random.choice(len(runs), size=args.n_runs, replace=False)
         selected_runs = runs.run_number[selected_runs_idx]
-        logger.debug("[assess.py] An explicit list of runs was not given, so we will make plots for %d randomly chosen runs: %s" % (args.n_runs, str(selected_runs)))
+        #logger.debug("[assess.py] An explicit list of runs was not given, so we will make plots for %d randomly chosen runs: %s" % (args.n_runs, str(selected_runs)))
     else:
         random_runs = False
         selected_runs = [int(x) for x in args.runs.split(",")]
         selected_runs_idx = runs.run_number < 0 # dummy all False
         for run in selected_runs:
             selected_runs_idx = selected_runs_idx | (runs.run_number == run)
-        logger.debug("[assess.py] Will make plots for the %d specified runs: %s" % (len(selected_runs), str(selected_runs)))
+        #logger.debug("[assess.py] Will make plots for the %d specified runs: %s" % (len(selected_runs), str(selected_runs)))
 
     runs_trim = runs[selected_runs_idx]
     for h, info in histograms.items():

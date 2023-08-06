@@ -127,14 +127,16 @@ else:
     config = vars(args)
     config["name"] = args.algorithm.lower()
 
-if not config["name"] in ["autoencoder", "pca", "statistical_tester"]:
+print(args)
+
+if not config["name"] in ["ae", "autoencoder", "pca", "statistical_tester"]:
     message = "[train.py] Requested algorithm '%s' is not in the supported list of algorithms ['autoencoder', 'pca']." % (config["name"])
     logger.exception(message)
     raise RuntimeError()
 
 if config["name"] == "pca":
     algorithm = PCA(**config)
-elif config["name"] == "autoencoder":
+elif (config["name"] == "autoencoder") or (config["name"] == "ae"):
     algorithm = AutoEncoder(**config)
 elif config["name"] == "statistical_tester":
     algorithm = StatisticalTester(**config)

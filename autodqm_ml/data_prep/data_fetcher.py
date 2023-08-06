@@ -7,6 +7,7 @@ import awkward
 from collections import defaultdict
 import itertools
 from tqdm import tqdm
+import re
 
 import logging
 logger = logging.getLogger(__name__)
@@ -137,23 +138,47 @@ class DataFetcher():
 
                 # RW Take prompt reco ROOT files from EOS to avoid degenerate re-reco files
                 files = [i for i in files if "PromptReco" not in i]
-                    
+                files = [i for i in files if "pilot" not in i]
+                files = [i for i in files if "Backfill" not in i]
+
+                pdsize = len(pd)
+                runs_with_dates = [i.partition("DQM_V0")[2][0:(36+pdsize)] for i in files]
+                #print(runs_with_dates)
+
+                def custom_sort_key(string):
+                    match = re.search(r'(\d+)__' + re.escape(pd) + r'__Run2022C-(\d{2})([A-Za-z]{3})(\d{4})', string)
+                    if match:
+                        index, day, month, year = match.groups()
+                        months = {'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
+                        month_num = months[month]
+                        return (int(index), int(year), month_num, int(day))
+                    return (0, 0, 0, 0)
+
+                sorted_runs_with_dates = sorted(runs_with_dates, key=custom_sort_key, reverse=True)
+
+                #print(sorted_runs_with_dates)
+
                 all_runs = [i.partition("DQM_V0")[2][0:14] for i in files]
                 unique_runs = list(set(all_runs))
 
                 # find list of runs unique to each month by checking their presence is not in the most recent set of files
 
-                unique_files = []
+                unique_files_with_date = []
                 for unique_run in unique_runs:
+                    for eachRunWithDate in sorted_runs_with_dates:
+                        if unique_run in eachRunWithDate:
+                            unique_files_with_date.append(eachRunWithDate)
+                            break
+
+                unique_files = []
+                for uniqueRunWithDate in unique_files_with_date:
                     for eachFile in files:
-                        if unique_run in eachFile:
+                        if uniqueRunWithDate in eachFile:
                             unique_files.append(eachFile)
                             break
 
-                print("Unique files:")
                 print(len(files))
                 print(len(unique_files))
-                print(unique_files)
 
                 self.files[pd][year] = unique_files
                 self.files["all"] += unique_files
@@ -208,7 +233,8 @@ class DataFetcher():
                 files.append(file)
             else: # this is a subdir or not a root file
                 if datasets["runs"] is not None:
-                    run_prefix = DataFetcher.get_run_prefix(dir)
+                    run_prefix = DataFetcher.get_run_prefix(dir)[3:]
+                    #run_prefix = run_prefix[3:]
                     if not any(run_prefix in run for run in datasets["runs"]): # check if any specified runs fall in the run range for this directory
                         continue
                 files += DataFetcher.get_files(dir, year, datasets, short) # run recursively on subdirs
@@ -261,6 +287,9 @@ class DataFetcher():
                         histograms["label"] = [label]
                         for k, v in histograms.items():
                             self.data[pd][k] += v
+                            #for X in v:
+                            #    print(k)
+                            #    print(X.shape)
                         
 
     def load_data(self, file, run_number, contents): 
@@ -366,14 +395,13 @@ class DataFetcher():
         for pd in self.pds:
 
             array = awkward.Array(self.data[pd])
-            
+
             if pd == "SingleMuon":
                 self.data[pd]['collection'] = ["Muon"] * len(self.data[pd]['year'])
             else:
                 self.data[pd]['collection'] = [pd] * len(self.data[pd]['year'])
             
             array_of_dfs.append(self.data[pd])
-            #print(self.data[pd])
             if array is not None:
                 output_file = "%s/%s.parquet" % (self.output_dir, pd)
                 logger.info("[DataFetcher : write_data] Writing histograms to output file '%s'" % (output_file))
@@ -389,8 +417,10 @@ class DataFetcher():
             pdalldict[key] = [K for sublist in value for K in sublist]
 
         del pdalldict['collection']
-        #print(pdalldict)
         bigarray = awkward.Array(pdalldict)
+        #pdalldict.to_csv("bigarray.csv",index=False)
+        #print(bigarray.head())
+        #print(bigarray.columns.values)
 
         if bigarray is not None:
             output_file = "%s/%s.parquet" % (self.output_dir, "AllCollections")
