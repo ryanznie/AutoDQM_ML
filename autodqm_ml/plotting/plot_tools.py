@@ -78,17 +78,14 @@ def make_original_vs_reconstructed_plot1d(name, original, recos, run, save_name,
     h_reco = []
     bbc = {reco: [] for reco in recos.keys()}
     nfp = {reco: [] for reco in recos.keys()}
-    print("Run: "+str(run))
     for reco, info in recos.items():
         h = Hist1D(info["reco"], bins = bins, label = "%s [sse : %.2E]" % (reco, info["score"]))
         h._counts = info["reco"]
         h_reco.append(h)
         count_bad_bin = np.maximum(np.abs(original - info["reco"]),0.001)
         bad_bin_size = (np.asarray(count_bad_bin) > 0.001).sum()
-        print("ALGORITHM: "+reco)
-        if bad_bin_size > 0.1*len(info["reco"]):
+        #if bad_bin_size > 0.1*len(info["reco"]):
             #print("ANOMALY IN BBC: Bad bin count greater than 10 ("+str(bad_bin_size)+") in run "+str(run))
-            print("BBC: "+str(bad_bin_size))
         bbc[reco] = bad_bin_size
  
         reconozero = np.asarray(info["reco"])
@@ -98,9 +95,8 @@ def make_original_vs_reconstructed_plot1d(name, original, recos, run, save_name,
             if reconozero[i]-0.01*reconozero[i] < original[i] < reconozero[i]+0.01*reconozero[i]:
                 nfp_vals[i] = 0
         nfp_tot = nfp_vals.sum()
-        if nfp_tot > 1e-4:
+        #if nfp_tot > 1e-4:
             #print("ANOMALY IN 95% DEVIATION: SSE counted at the 99% percentile greater than 1e-6 ("+str(nfp_tot)+") in run "+str(run))
-            print("OPD: "+str(nfp_tot))
         nfp[reco] = nfp_tot
 
     fig, (ax1,ax2) = plt.subplots(2, sharex=True, figsize=(8,6), gridspec_kw=dict(height_ratios=[3, 1]))

@@ -28,15 +28,15 @@ def count_hists_above(Fdf, Fthreshold_list):
   return mean(bad_hist_array)
 
 
-def main(infile):
+def main(infile, bad_runs_string):
 
   #all_files = glob.glob(os.path.join("./", "scores*.csv"))
   #df = pd.concat(map(pd.read_csv, all_files), axis=1)
 
   df = pd.read_csv(infile + "/bad_runs_sse_scores.csv")
   df = df.loc[:,~df.columns.duplicated()].copy()
-  #bad_runs = [355989,355990,355991,355992,355993,355994,355995,355996,355997,356001,356002,356003,356046,356047,356048,356073,356162,356163,356164,356165,356170,356174,356175,356309,356321,356371,356375,356377,356378,356382,356383,356384,356385,356426,356427,356428,356431,356432,356436,356466,356467,356468,356469,356470,356471,356472,356473,356474,356475,356476,356478,356479,356481,356488,356489,356523,356524,356525,356526,356527,356528,356529,356530,356568,356576,356577,356581,356582,356613,356614,356709,356719,356720,356721,356722,356788,356789,356810,356825,356902,356906,356943,356944,356945,356950,356997,357059,357070,357076,357077,357078,357096,357098,357100]
-  bad_runs = [355865,356071,356074,356321,356375,356466,356467,356469,356472,356473,356476,356478,356481,356488,356489,356577,356581,356709,356719,356720,356721,356722,356788,356789,356815,356943,356944,356945,356997,356998,357077,357078,357100,357101,357103,357105,357110]
+  
+  bad_runs = [int(run) for run in bad_runs_string.split(",")]
 
   df_pca = df.loc[df['algo'] == "pca"]
   df_ae = df.loc[df['algo'] == "ae"]
@@ -201,8 +201,9 @@ def main(infile):
 
 if __name__ == "__main__":
   parser = ArgumentParser(description=__doc__, formatter_class=ArgumentDefaultsHelpFormatter)
-  parser.add_argument("-i","--infile", type=str, help="Input directory where bad_runs_sse_scores.csv file is located (also output directory)")
+  parser.add_argument("-i","--infile", type=str, required=True, help="Input directory where bad_runs_sse_scores.csv file is located (also output directory)")
+  parser.add_argument("-br","--bad_runs", type=str, required=True, help="List of bad runs as determined by data certification reports or similar bodies (enter as comma separated numbers e.g. 356000,356002,...)")
   args = parser.parse_args()
 
-  main(infile=args.infile)
+  main(infile=args.infile, args.bad_runs)
 
