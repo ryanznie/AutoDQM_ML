@@ -50,7 +50,7 @@ class AnomalyDetectionAlgorithm():
         :type histograms: dict. Default histograms = {}
         :param train_frac: fraction of dataset to be kept as training data. Must be between 0 and 1. 
         :type train_frac: float. Default train_frac = 0.0
-        :param remove_low_stat: removes runs containing histograms with low stats. Low stat threshold is 10000 events.
+        :param remove_low_stat: removes runs containing histograms with low stats. Low stat threshold is 1000 events.
         :type remove_low_stat: bool. remove_low_stat = False
         """
         if self.data_is_loaded:

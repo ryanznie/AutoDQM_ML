@@ -47,7 +47,7 @@ parser.add_argument(
     help = "Minimum number of entries required per histogram for training. If a histogram has less than the set minimum, the histogram will not be included in training.",
     type = int,
     required = False,
-    default = 10000
+    default = 1000
 )
 parser.add_argument(
     "--train_highest_only",
