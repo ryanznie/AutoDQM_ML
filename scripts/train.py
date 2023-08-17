@@ -57,7 +57,6 @@ parser.add_argument(
     default = False
 )
 
-
 parser.add_argument(
     "--histograms",
     help = "csv list of histograms on which to train the ML algorithm. If multiple are supplied, for PCAs one PCA will be trained for each histogram, while for autoencoders, a single AutoEncoder taking each of the histograms as inputs will be trained.",

@@ -21,6 +21,8 @@ with open(input_path, 'r') as file:
 
 # Extract the list from the JSON data
 data_list = json_data["L1T"]
+data_header = list(json_data.keys())[0]
+print(data_header)
 
 # Convert the list into a comma-separated string
 csv_string = ",".join(["L1T/" + value for value in data_list])
