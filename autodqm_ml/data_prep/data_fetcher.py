@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import uproot
@@ -174,10 +175,8 @@ class DataFetcher():
                         if 'UL' in check_string:
                             unique_files.append(next(s for s in files_with_num if 'UL' in s))
                         elif 'PromptReco' in check_string:
-                            print("Prompt reco")
                             unique_files.append(next(s for s in files_with_num if 'PromptReco' in s))
                         else:
-                            print("Re-reco")
                             pdsize = len(pd)
                             runs_with_dates = [i.partition("DQM_V0")[2][0:(36+pdsize)] for i in files_with_num]
                             sorted_runs_with_dates = sorted(runs_with_dates, key=custom_sort_key, reverse=True)
@@ -201,11 +200,9 @@ class DataFetcher():
 
                 print(len(files))
                 print(len(unique_files))
-                
+
                 self.files[pd][year] = unique_files
                 self.files["all"] += unique_files
-                print(len(self.files["all"]))
-
 
     @staticmethod
     def construct_eos_path(base_path, pd, year):
@@ -289,20 +286,25 @@ class DataFetcher():
                     if self.datasets[year]["bad_runs"] is not None:
                         if str(run_number) in self.datasets[year]["bad_runs"]:
                             label = 1 # bad/anomalous
-                        elif self.datasets[year]["good_runs"] is None:
+                        #elif self.datasets[year]["good_runs"] is not None:
+                        else:
                             label = 0 # if only bad_runs was specified, mark everything not in bad_runs as good
 
-                    if self.datasets[year]["good_runs"] is not None:
-                        if str(run_number) in self.datasets[year]["good_runs"]:
-                            label = 0 # good/not anomalous
-                        elif self.datasets[year]["bad_runs"] is None:
-                            label = 1 # if only good_runs was specified, mark everything not in good_runs as bad
+                    #if self.datasets[year]["good_runs"] is not None:
+                    #    if str(run_number) in self.datasets[year]["good_runs"]:
+                    #        label = 0 # good/not anomalous
+                    #    elif self.datasets[year]["bad_runs"] is None:
+                    #        label = 1 # if only good_runs was specified, mark everything not in good_runs as bad
 
                     logger.debug("[DataFetcher : load_data] Loading histograms from file %s, run %d" % (file, run_number))
 
-                    histograms = self.load_data(file, run_number, self.contents) 
+                    histograms = self.load_data(file, run_number, self.contents)
                     if not self.data[pd]:
-                        self.data[pd] = histograms
+                        keys_list = list(histograms.keys())
+                        keys_list = keys_list + ["run_number","year","label"]
+                                                
+                        for key in keys_list:
+                            self.data[pd][key] = []
 
                     if histograms is not None:
                         histograms["run_number"] = [run_number]
@@ -344,8 +346,6 @@ class DataFetcher():
 
             for subsystem, histogram_list in contents.items(): 
                 for hist in histogram_list:
-                    # Runs that cause unusual errors to arise from reading hist data
-                    if run_number == 356428: continue
                     histogram_path = DataFetcher.construct_histogram_path(HIST_PATH, run_number, subsystem, hist)
                     hist_data[subsystem + "/" + hist] = [f[histogram_path].values()]
 
