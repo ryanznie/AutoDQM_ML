@@ -47,8 +47,9 @@ parser.add_argument(
     help = "Minimum number of entries required per histogram for training. If a histogram has less than the set minimum, the histogram will not be included in training.",
     type = int,
     required = False,
-    default = 1000
+    default = 0
 )
+
 parser.add_argument(
     "--train_highest_only",
     help = "If True, only trains on the runs with the highest stats, or the highest number of entries. The test set becomes the remaining runs.",
@@ -64,13 +65,6 @@ parser.add_argument(
     required = False,
     default = None
 )
-# To be added when I figure out how to add both safely.
-#parser.add_argument(
-#    "--train_size",
-#    help = "proportion of data to be used in model training (as opposed to model testing). Entering a number less than 0 does something weird, but I forgot what that is."
-#    required = False,
-#    default = 0.5,
-#)
 
 parser.add_argument(
     "--reference",

@@ -1,5 +1,5 @@
 {
-    "primary_datasets" : ["JetMET","SingleMuon","Muon"],
+    "primary_datasets" : ["HLTPhysics"],
     "years" : {
         "2022" : {
             "productions" : ["2022"],

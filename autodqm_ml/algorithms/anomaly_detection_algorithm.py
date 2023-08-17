@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 
-DEFAULT_COLUMNS = ["run_number", "train_label"] # columns which should always be read from input df
+DEFAULT_COLUMNS = ["run_number", "label"] # columns which should always be read from input df
 
 class AnomalyDetectionAlgorithm():
     """
@@ -79,19 +79,12 @@ class AnomalyDetectionAlgorithm():
 
         # Load dataframe
         df = awkward.from_parquet(self.input_file)
-        
        
         # Set helpful metadata
         for histogram, histogram_info in self.histograms.items():
-            #print("RW print df here")
-            #print(histogram)
             self.histograms[histogram]["name"] = histogram.replace("/", "").replace(" ","")
-            #print(self.histograms[histogram]["name"])
             self.histogram_name_map[self.histograms[histogram]["name"]] = histogram
-            #print(df)
 
-            #print("RW print df here")
-            #print(df[histogram])
             a = awkward.to_numpy(df[histogram][0])
             self.histograms[histogram]["shape"] = a.shape
             self.histograms[histogram]["n_dim"] = len(a.shape)
@@ -99,54 +92,10 @@ class AnomalyDetectionAlgorithm():
             for x in a.shape:
                 self.histograms[histogram]["n_bins"] *= x 
 
-        if not "train_label" in df.fields: # don't overwrite if a train/test split was already determined
-            if self.train_highest_only: #if desired, prioritize high-stat runs in train set
-                histogram = next(iter(self.histograms.items()))[0]
-                
-		# Sum up all entires in histogram, order, then partition by training fraction
-                logger.debug("[AnomalyDetectionAlgorithm : load_data] Assigning training/test set labels based on run stats, using histogram '%s'. For random train/test splitting, set train_highest_only to False (default) " % (histogram))
-                df["train_label"] = awkward.sum(df[histogram], axis = -1)
-                if self.histograms[histogram]["n_dim"] == 2:
-                    df["train_label"] = awkward.sum(df["train_label"], axis = -1)
-                df["train_label"] = awkward.argsort(df["train_label"])
-                
-                if train_frac > 0:
-                    partition = int((1 - train_frac)*len(df))
-                else:
-                    logger.debug("[AnomalyDetectionAlgorithm : load_data] No Training fraction given, using 50/50 train/test split.")
-                    partition = int(0.5*len(sorted_stats))
-                
-                df["train_label"] = df["train_label"] >= partition
-                         
-            elif train_frac > 0:
-                df["train_label"] = numpy.random.choice(2, size = len(df), p = [train_frac, 1 - train_frac]) # 0 = train, 1 = test, -1 = don't use in training or testing
-                df["train_label"] = awkward.where(
-                        df.label == kANOMALOUS,
-                        awkward.ones_like(df.label) * -1, # set train label for anomalous events to -1 so they aren't used in training or testing sets
-                        df.train_label # otherwise, keep the same test/train label as before
-                )
-            else:
-                df["train_label"] = numpy.ones(len(df)) * 1
-
-        # Keep only the necessary columns in dataframe
-        #df = df[DEFAULT_COLUMNS + list(self.histograms.keys())] 
-        
-        if self.remove_low_stat:
-            logger.debug("[anomaly_detection_algorithm : load_data] Removing low stat runs.")
-            cut = df.run_number > 0 # dummy all True cut
-            for histogram, histogram_info in self.histograms.items():
-                n_entries = awkward.sum(df[histogram], axis = -1)
-                if histogram_info["n_dim"] == 2:
-                    n_entries = awkward.sum(n_entries, axis = -1)
-
-                if awkward.all((n_entries <= 1.000001) & (n_entries >= 0.999999)): # was already normalized in a previous train.py run which would have removed low stat bins as well, so continue
-                    continue
-                else:
-                    cut = cut & (n_entries >= self.low_stat_threshold) # FIXME: hard-coded to 10k for now  THIS IS FIXED (Not hard coded any more)
-            n_runs_pre = len(df)
-            n_runs_post = awkward.sum(cut)
-            logger.debug("[anomaly_detection_algorithm : load_data] Removing %d/%d runs in which one or more of the requested histograms had less than %d entries." % (n_runs_pre - n_runs_post, n_runs_pre, self.low_stat_threshold))
-            df = df[cut]
+        print("first here")
+        print(df['label'])
+        #if not "train_label" in df.fields: 
+        #    df["train_label"] = df.rename(columns={"label":"train_label"})
 
         for histogram, histogram_info in self.histograms.items():
             # Normalize (if specified in histograms dict)
@@ -158,12 +107,12 @@ class AnomalyDetectionAlgorithm():
 
                     logger.debug("[anomaly_detection_algorithm : load_data] Scaling all entries in histogram '%s' by the sum of total entries." % histogram)
                     df[histogram] = df[histogram] * (1. / sum) 
-        self.n_train = awkward.sum(df.train_label == 0)
-        self.n_test = awkward.sum(df.train_label == 1)
+        self.n_train = awkward.sum(df.label == 0)
+        self.n_bad_runs = awkward.sum(df.label != 0)
         self.df = df
         self.n_histograms = len(list(self.histograms.keys()))
 
-        logger.debug("[AnomalyDetectionAlgorithm : load_data] Loaded data for %d histograms with %d events in training set and %d events in testing set." % (self.n_histograms, self.n_train, self.n_test))
+        logger.debug("[AnomalyDetectionAlgorithm : load_data] Loaded data for %d histograms with %d events in training set, excluding the %d bad runs." % (self.n_histograms, self.n_train, self.n_bad_runs))
 
         self.data_is_loaded = True
 

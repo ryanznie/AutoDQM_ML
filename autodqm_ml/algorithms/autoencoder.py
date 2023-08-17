@@ -181,9 +181,9 @@ class AutoEncoder(MLAlgorithm):
         outputs = {}
 
         if split == "train":
-            cut = self.df.train_label == 0
+            cut = self.df.label == 0
         elif split == "test":
-            cut = self.df.train_label == 1
+            cut = self.df.label == 1
         else:
             cut = self.df.run_number >= 0 # dummy all True cut
 

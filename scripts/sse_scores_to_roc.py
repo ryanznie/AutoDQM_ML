@@ -53,13 +53,6 @@ def parse_arguments():
     required = True,
     default = None
   )
-  parser.add_argument(
-    "--bad_runs",
-    help = "csv of runs that are labelled bad a priori by data certification reports, DPGs or similar",
-    type = str,
-    required = True,
-    default = None
-  )
   return parser.parse_args()
 
 def count_number_of_hists_above_threshold(Fdf, Fthreshold_list):
@@ -130,10 +123,13 @@ def main(args):
   sse_df_ae = pd.DataFrame(runs.run_number)
   sse_df_ae.columns = ["run_number"]
   sse_df_ae['algo'] = 'ae'
+  sse_df_ae['label'] = runs['label']
 
   sse_df_pca = pd.DataFrame(runs.run_number)
   sse_df_pca.columns = ["run_number"]
   sse_df_pca['algo'] = 'pca'
+  sse_df_pca['label'] = runs['label']
+
   for h, info in histograms.items():
     for algorithm, algorithm_info in info["algorithms"].items():
           
@@ -149,7 +145,7 @@ def main(args):
   # Saved csv of SSE scores, now to produce ROC curves
   sse_df = sse_df.loc[:,~sse_df.columns.duplicated()].copy()
   
-  bad_runs = [int(run) for run in args.bad_runs.split(",")]
+  #bad_runs = [int(run) for run in args.bad_runs.split(",")]
 
   df_pca = sse_df.loc[sse_df['algo'] == "pca"]
   df_ae = sse_df.loc[sse_df['algo'] == "ae"]
@@ -162,12 +158,10 @@ def main(args):
     hist_cols = [col for col in J.columns if 'Run summary' in col]
     hist_dict = {each_hist: "max" for each_hist in hist_cols}
 
-    J = J.groupby('run_number')[hist_cols].agg(hist_dict).reset_index()
+    J = J.groupby(['run_number','label'])[hist_cols].agg(hist_dict).reset_index()
 
-    J['run_good'] = "Y"
-    J.loc[J['run_number'].isin(bad_runs), 'run_good'] = "N"
-    J = J.sort_values(['run_good']).reset_index()
-    J = J[['run_number','run_good'] + [col for col in J.columns if (col != 'run_number')&(col != 'run_good')]]
+    J = J.sort_values(['label']).reset_index()
+    J = J[['run_number','label'] + [col for col in J.columns if (col != 'run_number')&(col != 'label')]]
 
     # new threshold cut-offs per Si's recommendations
     # 0th cut-off at 1st highest SSE + (1st - 2nd highest)*0.5   
@@ -212,8 +206,8 @@ def main(args):
     med_1p5 = med*1.5
     med_1p8 = med*1.8
 
-    J_good = J.loc[J['run_good'] == "Y"].reset_index()
-    J_bad = J.loc[J['run_good'] == "N"].reset_index()
+    J_good = J.loc[J['label'] == 0].reset_index()
+    J_bad = J.loc[J['label'] == 1].reset_index()
     J_good = J_good[['run_number'] + hist_cols]
     J_bad = J_bad[['run_number'] + hist_cols]
 
