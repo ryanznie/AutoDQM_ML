@@ -11,16 +11,12 @@ import numpy as np
 import glob
 import os
 import matplotlib.pyplot as plt
-from scipy.interpolate import make_interp_spline
-from statistics import mean
 
 import json
 import argparse
 import awkward
 
-from autodqm_ml.utils import setup_logger
 from autodqm_ml.utils import expand_path
-from autodqm_ml.plotting.plot_tools import make_original_vs_reconstructed_plot, make_sse_plot, plot_roc_curve
 from autodqm_ml.constants import kANOMALOUS, kGOOD
 
 def parse_arguments():
@@ -60,7 +56,6 @@ def count_number_of_hists_above_threshold(Fdf, Fthreshold_list):
   Ft_list = np.array([float(Fthreshold_list_item) for Fthreshold_list_item in Fthreshold_list])
   hist_bad_count = 0
   bad_hist_array = []
-  #print("Runs list = " + str(len(runs_list)))
   for run in runs_list:
     run_row = Fdf.loc[Fdf['run_number'] == run].drop(columns=['run_number'])
     run_row = run_row.iloc[0].values
@@ -174,9 +169,14 @@ def main(args):
       cutoff_thresholds = []
       cutoff_thresholds.append(cutoff_0)
       for ii in range(len(sse_ordered)-1):
-        cutoff_ii = 0.5*(sse_ordered[0]+sse_ordered[1])
+        cutoff_ii = 0.5*(sse_ordered[ii]+sse_ordered[ii+1])
         cutoff_thresholds.append(cutoff_ii)
       cutoffs_across_hists.append(cutoff_thresholds)
+
+    if len(cutoffs_across_hists[0]) < 7:
+      print("There are only " + str(len(cutoffs_across_hists)) + " runs for study, which is a very small number. The script will need modifying to account for this.")
+    else:
+      cutoffs_across_hists = np.array(cutoffs_across_hists)
 
     pct_99 = []
     pct_95 = []
@@ -212,70 +212,91 @@ def main(args):
     J_bad = J_bad[['run_number'] + hist_cols]
 
     #### number of bad histograms
-    N_bad_hists = 5
-    t0g_FRF_rc = count_fraction_runs_above(J_good, cutoffs_across_hists[0], N_bad_hists)
-    t1g_FRF_rc = count_fraction_runs_above(J_good, cutoffs_across_hists[1], N_bad_hists)
-    t2g_FRF_rc = count_fraction_runs_above(J_good, cutoffs_across_hists[2], N_bad_hists)
-    t3g_FRF_rc = count_fraction_runs_above(J_good, cutoffs_across_hists[3], N_bad_hists)
-    t4g_FRF_rc = count_fraction_runs_above(J_good, cutoffs_across_hists[4], N_bad_hists)
-    t5g_FRF_rc = count_fraction_runs_above(J_good, cutoffs_across_hists[5], N_bad_hists)
-    t6g_FRF_rc = count_fraction_runs_above(J_good, cutoffs_across_hists[6], N_bad_hists)
-    t0b_FRF_rc = count_fraction_runs_above(J_bad, cutoffs_across_hists[0], N_bad_hists)
-    t1b_FRF_rc = count_fraction_runs_above(J_bad, cutoffs_across_hists[1], N_bad_hists)
-    t2b_FRF_rc = count_fraction_runs_above(J_bad, cutoffs_across_hists[2], N_bad_hists)
-    t3b_FRF_rc = count_fraction_runs_above(J_bad, cutoffs_across_hists[3], N_bad_hists)
-    t4b_FRF_rc = count_fraction_runs_above(J_bad, cutoffs_across_hists[4], N_bad_hists)
-    t5b_FRF_rc = count_fraction_runs_above(J_bad, cutoffs_across_hists[5], N_bad_hists)
-    t6b_FRF_rc = count_fraction_runs_above(J_bad, cutoffs_across_hists[6], N_bad_hists)
+    if len(hist_cols) < 5:
+      print("There are too few histograms for a meaningful analysis, would consider at least 10 histograms")
+      break
+    N_bad_hists = [5,3,1]
+    tFRF_ROC_good_X = []
+    tFRF_ROC_bad_Y = []
+    mFRF_ROC_good_X = []
+    mFRF_ROC_bad_Y = []
+    pFRF_ROC_good_X = []
+    pFRF_ROC_bad_Y = []
 
-    p99g_FRF_rc = count_fraction_runs_above(J_good, pct_99, N_bad_hists)
-    p95g_FRF_rc = count_fraction_runs_above(J_good, pct_95, N_bad_hists)
-    p90g_FRF_rc = count_fraction_runs_above(J_good, pct_90, N_bad_hists)
-    p80g_FRF_rc = count_fraction_runs_above(J_good, pct_80, N_bad_hists)
-    p70g_FRF_rc = count_fraction_runs_above(J_good, pct_70, N_bad_hists)
-    p60g_FRF_rc = count_fraction_runs_above(J_good, pct_60, N_bad_hists)
-    p40g_FRF_rc = count_fraction_runs_above(J_good, pct_40, N_bad_hists)
-    p20g_FRF_rc = count_fraction_runs_above(J_good, pct_20, N_bad_hists)
-    nsg_FRF_rc = count_fraction_runs_above(J_good, null_set, N_bad_hists)
-    m03g_FRF_rc = count_fraction_runs_above(J_good, med_0p3, N_bad_hists)
-    m06g_FRF_rc = count_fraction_runs_above(J_good, med_0p6, N_bad_hists)
-    m09g_FRF_rc = count_fraction_runs_above(J_good, med_0p9, N_bad_hists)
-    m10g_FRF_rc = count_fraction_runs_above(J_good, med, N_bad_hists)
-    m12g_FRF_rc = count_fraction_runs_above(J_good, med_1p2, N_bad_hists)
-    m15g_FRF_rc = count_fraction_runs_above(J_good, med_1p5, N_bad_hists)
-    m18g_FRF_rc = count_fraction_runs_above(J_good, med_1p8, N_bad_hists)
+    for nbh_ii in N_bad_hists:
+      tFRF_ROC_good_X_init = [0.0]
+      tFRF_ROC_bad_Y_init = [0.0]
+      for cutoff_index in range(len(cutoffs_across_hists[:])):
+        t_cutoff_index_g_FRF_rc = count_fraction_runs_above(J_good, cutoffs_across_hists[:,cutoff_index], nbh_ii)
+        t_cutoff_index_b_FRF_rc = count_fraction_runs_above(J_bad, cutoffs_across_hists[:,cutoff_index], nbh_ii)
+        tFRF_ROC_good_X_init.append(t_cutoff_index_g_FRF_rc)
+        tFRF_ROC_bad_Y_init.append(t_cutoff_index_b_FRF_rc)
 
-    p99b_FRF_rc = count_fraction_runs_above(J_bad, pct_99, N_bad_hists)
-    p95b_FRF_rc = count_fraction_runs_above(J_bad, pct_95, N_bad_hists)
-    p90b_FRF_rc = count_fraction_runs_above(J_bad, pct_90, N_bad_hists)
-    p80b_FRF_rc = count_fraction_runs_above(J_bad, pct_80, N_bad_hists)
-    p70b_FRF_rc = count_fraction_runs_above(J_bad, pct_70, N_bad_hists)
-    p60b_FRF_rc = count_fraction_runs_above(J_bad, pct_60, N_bad_hists)
-    p40b_FRF_rc = count_fraction_runs_above(J_bad, pct_40, N_bad_hists)
-    p20b_FRF_rc = count_fraction_runs_above(J_bad, pct_20, N_bad_hists)
-    nsb_FRF_rc = count_fraction_runs_above(J_bad, null_set, N_bad_hists)
-    m03b_FRF_rc = count_fraction_runs_above(J_bad, med_0p3, N_bad_hists)
-    m06b_FRF_rc = count_fraction_runs_above(J_bad, med_0p6, N_bad_hists)
-    m09b_FRF_rc = count_fraction_runs_above(J_bad, med_0p9, N_bad_hists)
-    m10b_FRF_rc = count_fraction_runs_above(J_bad, med, N_bad_hists)
-    m12b_FRF_rc = count_fraction_runs_above(J_bad, med_1p2, N_bad_hists)
-    m15b_FRF_rc = count_fraction_runs_above(J_bad, med_1p5, N_bad_hists)
-    m18b_FRF_rc = count_fraction_runs_above(J_bad, med_1p8, N_bad_hists)
+      tFRF_ROC_good_X_init = sorted(tFRF_ROC_good_X_init)
+      tFRF_ROC_bad_Y_init = sorted(tFRF_ROC_bad_Y_init)
 
-    t0g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[0])
-    t1g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[1])
-    t2g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[2])
-    t3g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[3])
-    t4g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[4])
-    t5g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[5])
-    t6g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[6])
-    t0b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[0])
-    t1b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[1])
-    t2b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[2])
-    t3b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[3])
-    t4b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[4])
-    t5b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[5])
-    t6b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[6])
+      tFRF_ROC_good_X.append(tFRF_ROC_good_X_init)
+      tFRF_ROC_bad_Y.append(tFRF_ROC_bad_Y_init)
+
+      p99g_FRF_rc = count_fraction_runs_above(J_good, pct_99, nbh_ii)
+      p95g_FRF_rc = count_fraction_runs_above(J_good, pct_95, nbh_ii)
+      p90g_FRF_rc = count_fraction_runs_above(J_good, pct_90, nbh_ii)
+      p80g_FRF_rc = count_fraction_runs_above(J_good, pct_80, nbh_ii)
+      p70g_FRF_rc = count_fraction_runs_above(J_good, pct_70, nbh_ii)
+      p60g_FRF_rc = count_fraction_runs_above(J_good, pct_60, nbh_ii)
+      p40g_FRF_rc = count_fraction_runs_above(J_good, pct_40, nbh_ii)
+      p20g_FRF_rc = count_fraction_runs_above(J_good, pct_20, nbh_ii)
+      nsg_FRF_rc = count_fraction_runs_above(J_good, null_set, nbh_ii)
+      m03g_FRF_rc = count_fraction_runs_above(J_good, med_0p3, nbh_ii)
+      m06g_FRF_rc = count_fraction_runs_above(J_good, med_0p6, nbh_ii)
+      m09g_FRF_rc = count_fraction_runs_above(J_good, med_0p9, nbh_ii)
+      m10g_FRF_rc = count_fraction_runs_above(J_good, med, nbh_ii)
+      m12g_FRF_rc = count_fraction_runs_above(J_good, med_1p2, nbh_ii)
+      m15g_FRF_rc = count_fraction_runs_above(J_good, med_1p5, nbh_ii)
+      m18g_FRF_rc = count_fraction_runs_above(J_good, med_1p8, nbh_ii)
+
+      p99b_FRF_rc = count_fraction_runs_above(J_bad, pct_99, nbh_ii)
+      p95b_FRF_rc = count_fraction_runs_above(J_bad, pct_95, nbh_ii)
+      p90b_FRF_rc = count_fraction_runs_above(J_bad, pct_90, nbh_ii)
+      p80b_FRF_rc = count_fraction_runs_above(J_bad, pct_80, nbh_ii)
+      p70b_FRF_rc = count_fraction_runs_above(J_bad, pct_70, nbh_ii)
+      p60b_FRF_rc = count_fraction_runs_above(J_bad, pct_60, nbh_ii)
+      p40b_FRF_rc = count_fraction_runs_above(J_bad, pct_40, nbh_ii)
+      p20b_FRF_rc = count_fraction_runs_above(J_bad, pct_20, nbh_ii)
+      nsb_FRF_rc = count_fraction_runs_above(J_bad, null_set, nbh_ii)
+      m03b_FRF_rc = count_fraction_runs_above(J_bad, med_0p3, nbh_ii)
+      m06b_FRF_rc = count_fraction_runs_above(J_bad, med_0p6, nbh_ii)
+      m09b_FRF_rc = count_fraction_runs_above(J_bad, med_0p9, nbh_ii)
+      m10b_FRF_rc = count_fraction_runs_above(J_bad, med, nbh_ii)
+      m12b_FRF_rc = count_fraction_runs_above(J_bad, med_1p2, nbh_ii)
+      m15b_FRF_rc = count_fraction_runs_above(J_bad, med_1p5, nbh_ii)
+      m18b_FRF_rc = count_fraction_runs_above(J_bad, med_1p8, nbh_ii)
+
+      mFRF_ROC_good_X_init = sorted([nsg_FRF_rc,m03g_FRF_rc,m06g_FRF_rc,m09g_FRF_rc,m10g_FRF_rc,m12g_FRF_rc,m15g_FRF_rc,m18g_FRF_rc,0.0])
+      mFRF_ROC_bad_Y_init = sorted([nsb_FRF_rc,m03b_FRF_rc,m06b_FRF_rc,m09b_FRF_rc,m10b_FRF_rc,m12b_FRF_rc,m15b_FRF_rc,m18b_FRF_rc,0.0])
+
+      pFRF_ROC_good_X_init = sorted([nsg_FRF_rc,p99g_FRF_rc,p95g_FRF_rc,p90g_FRF_rc,p80g_FRF_rc,p70g_FRF_rc,p60g_FRF_rc,p40g_FRF_rc,p20g_FRF_rc,0.0])
+      pFRF_ROC_bad_Y_init = sorted([nsb_FRF_rc,p99b_FRF_rc,p95b_FRF_rc,p90b_FRF_rc,p80b_FRF_rc,p70b_FRF_rc,p60b_FRF_rc,p40b_FRF_rc,p20b_FRF_rc,0.0])
+
+      mFRF_ROC_good_X.append(mFRF_ROC_good_X_init)
+      mFRF_ROC_bad_Y.append(mFRF_ROC_bad_Y_init)
+      pFRF_ROC_good_X.append(pFRF_ROC_good_X_init)
+      pFRF_ROC_bad_Y.append(pFRF_ROC_bad_Y_init)
+
+    t0g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[:,0])
+    t1g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[:,1])
+    t2g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[:,2])
+    t3g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[:,3])
+    t4g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[:,4])
+    t5g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[:,5])
+    t6g_MRF_rc = count_mean_runs_above(J_good, cutoffs_across_hists[:,6])
+    t0b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[:,0])
+    t1b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[:,1])
+    t2b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[:,2])
+    t3b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[:,3])
+    t4b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[:,4])
+    t5b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[:,5])
+    t6b_MRF_rc = count_mean_runs_above(J_bad, cutoffs_across_hists[:,6])
 
     p99g_MRF_rc = count_mean_runs_above(J_good, pct_99)
     p95g_MRF_rc = count_mean_runs_above(J_good, pct_95)
@@ -320,40 +341,33 @@ def main(args):
     pMRF_ROC_good_X = sorted([nsg_MRF_rc,p99g_MRF_rc,p95g_MRF_rc,p90g_MRF_rc,p80g_MRF_rc,p70g_MRF_rc,p60g_MRF_rc,p40g_MRF_rc,p20g_MRF_rc,0.0])
     pMRF_ROC_bad_Y = sorted([nsb_MRF_rc,p99b_MRF_rc,p95b_MRF_rc,p90b_MRF_rc,p80b_MRF_rc,p70b_MRF_rc,p60b_MRF_rc,p40b_MRF_rc,p20b_MRF_rc,0.0])
 
-    tFRF_ROC_good_X = sorted([t0g_FRF_rc,t1g_FRF_rc,t2g_FRF_rc,t3g_FRF_rc,t4g_FRF_rc,t5g_FRF_rc,t6g_FRF_rc,0.0])
-    tFRF_ROC_bad_Y = sorted([t0b_FRF_rc,t1b_FRF_rc,t2b_FRF_rc,t3b_FRF_rc,t4b_FRF_rc,t5b_FRF_rc,t6b_FRF_rc,0.0])
+    fig, axs = plt.subplots(ncols=2,nrows=2,figsize=(12,12))
+    AX_val = [axs[0,1], axs[1,0], axs[1,1]]
 
-    mFRF_ROC_good_X = sorted([nsg_FRF_rc,m03g_FRF_rc,m06g_FRF_rc,m09g_FRF_rc,m10g_FRF_rc,m12g_FRF_rc,m15g_FRF_rc,m18g_FRF_rc,0.0])
-    mFRF_ROC_bad_Y = sorted([nsb_FRF_rc,m03b_FRF_rc,m06b_FRF_rc,m09b_FRF_rc,m10b_FRF_rc,m12b_FRF_rc,m15b_FRF_rc,m18b_FRF_rc,0.0])
+    for jj in range(len(N_bad_hists)):
+      if N_bad_hists[jj] == 1:
+        AX_val[jj].set_xlabel('Fraction of good runs with at least 1 histogram flagged')
+        AX_val[jj].set_ylabel('Fraction of bad runs with at least 1 histogram flagged')
+      else:
+        AX_val[jj].set_xlabel('Fraction of good runs with at least '+str(N_bad_hists[jj])+' histograms flagged')
+        AX_val[jj].set_ylabel('Fraction of bad runs with at least '+str(N_bad_hists[jj])+' histograms flagged')
+      AX_val[jj].plot(mFRF_ROC_good_X[jj],mFRF_ROC_bad_Y[jj], '-bo', mfc='orange', mec='k', markersize=8, linewidth=1, label='Median of all SSE values')
+      AX_val[jj].plot(pFRF_ROC_good_X[jj],pFRF_ROC_bad_Y[jj], '-r^', mfc='green', mec='k', markersize=8, linewidth=1, label='Quantile of all SSE values')
+      AX_val[jj].plot(tFRF_ROC_good_X[jj],tFRF_ROC_bad_Y[jj], '-yD', mfc='purple', mec='k', markersize=8, linewidth=1, label='N,N+1 threshold SSE values')
+      AX_val[jj].axis(xmin=0,xmax=1,ymin=0,ymax=1)
+      AX_val[jj].axline((0, 0), slope=1, linestyle='--',linewidth=0.8,color='gray')
+      AX_val[jj].annotate("Algorithm: " + I, xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
+      AX_val[jj].legend(loc='lower right')
 
-    pFRF_ROC_good_X = sorted([nsg_FRF_rc,p99g_FRF_rc,p95g_FRF_rc,p90g_FRF_rc,p80g_FRF_rc,p70g_FRF_rc,p60g_FRF_rc,p40g_FRF_rc,p20g_FRF_rc,0.0])
-    pFRF_ROC_bad_Y = sorted([nsb_FRF_rc,p99b_FRF_rc,p95b_FRF_rc,p90b_FRF_rc,p80b_FRF_rc,p70b_FRF_rc,p60b_FRF_rc,p40b_FRF_rc,p20b_FRF_rc,0.0])
-
-    fig, (ax, ax2) = plt.subplots(1,2,figsize=(12,6))
-
-    if N_bad_hists == 1:
-      ax.set_xlabel('Fraction of good runs with at least 1 histogram flagged')
-      ax.set_ylabel('Fraction of bad runs with at least 1 histogram flagged')
-    else:
-      ax.set_xlabel('Fraction of good runs with at least '+str(N_bad_hists)+' histograms flagged')
-      ax.set_ylabel('Fraction of bad runs with at least '+str(N_bad_hists)+' histograms flagged')
-    ax.plot(mFRF_ROC_good_X,mFRF_ROC_bad_Y, '-bo', mfc='orange', mec='k', markersize=8, linewidth=1, label='Median of all SSE values')
-    ax.plot(pFRF_ROC_good_X,pFRF_ROC_bad_Y, '-r^', mfc='green', mec='k', markersize=8, linewidth=1, label='Quantile of all SSE values')
-    ax.plot(tFRF_ROC_good_X,tFRF_ROC_bad_Y, '-yD', mfc='purple', mec='k', markersize=8, linewidth=1, label='N,N+1 threshold SSE values')
-    ax.axis(xmin=0,xmax=1,ymin=0,ymax=1)
-    ax.axline((0, 0), slope=1, linestyle='--',linewidth=0.8,color='gray')
-    ax.annotate("Algorithm: " + I, xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
-    ax.legend(loc='lower right')
-
-    ax2.set_xlabel('Mean number of flagged good runs')
-    ax2.set_ylabel('Mean number of flagged bad runs')
-    ax2.plot(mMRF_ROC_good_X,mMRF_ROC_bad_Y, '-bo', mfc='orange', mec='k', markersize=8, linewidth=1, label='Median of all SSE values')
-    ax2.plot(pMRF_ROC_good_X,pMRF_ROC_bad_Y, '-r^', mfc='green', mec='k', markersize=8, linewidth=1, label='Quantile of all SSE values')
-    ax2.plot(tMRF_ROC_good_X,tMRF_ROC_bad_Y, '-yD', mfc='purple', mec='k', markersize=8, linewidth=1, label='N,N+1 threshold SSE values')
-    ax2.axline((0, 0), slope=1, linestyle='--',linewidth=0.8,color='gray')
-    ax2.annotate("Algorithm: " + I, xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
-    ax2.axis(xmin=0,ymin=0)
-    ax2.legend(loc='lower right')
+    axs[0,0].set_xlabel('Mean number of flagged good runs')
+    axs[0,0].set_ylabel('Mean number of flagged bad runs')
+    axs[0,0].plot(mMRF_ROC_good_X,mMRF_ROC_bad_Y, '-bo', mfc='orange', mec='k', markersize=8, linewidth=1, label='Median of all SSE values')
+    axs[0,0].plot(pMRF_ROC_good_X,pMRF_ROC_bad_Y, '-r^', mfc='green', mec='k', markersize=8, linewidth=1, label='Quantile of all SSE values')
+    axs[0,0].plot(tMRF_ROC_good_X,tMRF_ROC_bad_Y, '-yD', mfc='purple', mec='k', markersize=8, linewidth=1, label='N,N+1 threshold SSE values')
+    axs[0,0].axline((0, 0), slope=1, linestyle='--',linewidth=0.8,color='gray')
+    axs[0,0].annotate("Algorithm: " + I, xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
+    axs[0,0].axis(xmin=0,ymin=0)
+    axs[0,0].legend(loc='lower right')
 
     plt.savefig(args.output_dir + "/FRF_MRF_ROC_comparison_" + I + ".pdf")
 
