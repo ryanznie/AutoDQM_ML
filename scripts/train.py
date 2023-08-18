@@ -27,6 +27,7 @@ parser.add_argument(
     required = False,
     default = None
 )
+
 parser.add_argument(
     "--tag",
     help = "tag to identify output files",
@@ -34,6 +35,7 @@ parser.add_argument(
     required = False,
     default = None
 )
+
 parser.add_argument(
     "--input_file",
     help = "input file (i.e. output from fetch_data.py) to use for training the ML algorithm",
@@ -171,4 +173,4 @@ if isinstance(algorithm, MLAlgorithm):
 algorithm.predict()
 
 # Save model and new df with score zipped in
-algorithm.save()
+algorithm.save(histograms = histograms, tag = args.tag, algorithm = args.algorithm)
