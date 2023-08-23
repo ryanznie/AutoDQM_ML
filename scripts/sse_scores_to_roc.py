@@ -69,6 +69,7 @@ def main(args):
 
   sse_df = pd.read_csv(args.input_file)
   algorithm_name = str(sse_df['algo'].iloc[0]).upper()
+  if algorithm_name == "BETAB": algorithm_name = "Beta_Binomial"
 
   sse_df = sse_df.loc[:,~sse_df.columns.duplicated()].copy()
   
@@ -133,10 +134,6 @@ def main(args):
   sse_df_good = sse_df_good[['run_number'] + hist_cols]
   sse_df_bad = sse_df_bad[['run_number'] + hist_cols]
 
-  #### number of bad histograms
-  if len(hist_cols) < 5:
-    print("There are too few histograms for a meaningful analysis, would consider at least 10 histograms")
-
   N_bad_hists = [5,3,1]
   tFRF_ROC_good_X = []
   tFRF_ROC_bad_Y = []
@@ -148,7 +145,7 @@ def main(args):
   for nbh_ii in N_bad_hists:
     tFRF_ROC_good_X_init = [0.0]
     tFRF_ROC_bad_Y_init = [0.0]
-    for cutoff_index in range(len(cutoffs_across_hists[:])):
+    for cutoff_index in range(len(cutoffs_across_hists[0,:])):
       t_cutoff_index_g_FRF_rc = count_fraction_runs_above(sse_df_good, cutoffs_across_hists[:,cutoff_index], nbh_ii)
       t_cutoff_index_b_FRF_rc = count_fraction_runs_above(sse_df_bad, cutoffs_across_hists[:,cutoff_index], nbh_ii)
       tFRF_ROC_good_X_init.append(t_cutoff_index_g_FRF_rc)
@@ -205,20 +202,20 @@ def main(args):
     pFRF_ROC_good_X.append(pFRF_ROC_good_X_init)
     pFRF_ROC_bad_Y.append(pFRF_ROC_bad_Y_init)
 
-  t0g_MRF_rc = count_mean_runs_above(sse_df_good, cutoffs_across_hists[:,0])
-  t1g_MRF_rc = count_mean_runs_above(sse_df_good, cutoffs_across_hists[:,1])
-  t2g_MRF_rc = count_mean_runs_above(sse_df_good, cutoffs_across_hists[:,2])
-  t3g_MRF_rc = count_mean_runs_above(sse_df_good, cutoffs_across_hists[:,3])
-  t4g_MRF_rc = count_mean_runs_above(sse_df_good, cutoffs_across_hists[:,4])
-  t5g_MRF_rc = count_mean_runs_above(sse_df_good, cutoffs_across_hists[:,5])
-  t6g_MRF_rc = count_mean_runs_above(sse_df_good, cutoffs_across_hists[:,6])
-  t0b_MRF_rc = count_mean_runs_above(sse_df_bad, cutoffs_across_hists[:,0])
-  t1b_MRF_rc = count_mean_runs_above(sse_df_bad, cutoffs_across_hists[:,1])
-  t2b_MRF_rc = count_mean_runs_above(sse_df_bad, cutoffs_across_hists[:,2])
-  t3b_MRF_rc = count_mean_runs_above(sse_df_bad, cutoffs_across_hists[:,3])
-  t4b_MRF_rc = count_mean_runs_above(sse_df_bad, cutoffs_across_hists[:,4])
-  t5b_MRF_rc = count_mean_runs_above(sse_df_bad, cutoffs_across_hists[:,5])
-  t6b_MRF_rc = count_mean_runs_above(sse_df_bad, cutoffs_across_hists[:,6])
+  tMRF_ROC_good_X = []
+  tMRF_ROC_bad_Y = []
+  for cutoff_index in range(len(cutoffs_across_hists[0,:])):
+    #if not cutoff_index % 8:
+    t_cutoff_index_g_MRF_rc = count_mean_runs_above(sse_df_good, cutoffs_across_hists[:,cutoff_index])
+    t_cutoff_index_b_MRF_rc = count_mean_runs_above(sse_df_bad, cutoffs_across_hists[:,cutoff_index])
+    tMRF_ROC_good_X.append(t_cutoff_index_g_MRF_rc)
+    tMRF_ROC_bad_Y.append(t_cutoff_index_b_MRF_rc)
+
+  tMRF_ROC_good_X = sorted(tMRF_ROC_good_X)
+  tMRF_ROC_bad_Y = sorted(tMRF_ROC_bad_Y)
+  print("Mean values")
+  print(tMRF_ROC_good_X)
+  print(tMRF_ROC_bad_Y)
 
   p99g_MRF_rc = count_mean_runs_above(sse_df_good, pct_99)
   p95g_MRF_rc = count_mean_runs_above(sse_df_good, pct_95)
@@ -254,9 +251,6 @@ def main(args):
   m15b_MRF_rc = count_mean_runs_above(sse_df_bad, med_1p5)
   m18b_MRF_rc = count_mean_runs_above(sse_df_bad, med_1p8)
 
-  tMRF_ROC_good_X = sorted([t0g_MRF_rc,t1g_MRF_rc,t2g_MRF_rc,t3g_MRF_rc,t4g_MRF_rc,t5g_MRF_rc,t6g_MRF_rc,0.0])
-  tMRF_ROC_bad_Y = sorted([t0b_MRF_rc,t1b_MRF_rc,t2b_MRF_rc,t3b_MRF_rc,t4b_MRF_rc,t5b_MRF_rc,t6b_MRF_rc,0.0])
-
   mMRF_ROC_good_X = sorted([nsg_MRF_rc,m03g_MRF_rc,m06g_MRF_rc,m09g_MRF_rc,m10g_MRF_rc,m12g_MRF_rc,m15g_MRF_rc,m18g_MRF_rc,0.0])
   mMRF_ROC_bad_Y = sorted([nsb_MRF_rc,m03b_MRF_rc,m06b_MRF_rc,m09b_MRF_rc,m10b_MRF_rc,m12b_MRF_rc,m15b_MRF_rc,m18b_MRF_rc,0.0])
 
@@ -273,6 +267,9 @@ def main(args):
     else:
       AX_val[jj].set_xlabel('Fraction of good runs with at least '+str(N_bad_hists[jj])+' histograms flagged')
       AX_val[jj].set_ylabel('Fraction of bad runs with at least '+str(N_bad_hists[jj])+' histograms flagged')
+    print(N_bad_hists[jj])
+    print(tFRF_ROC_good_X[jj])
+    print(tFRF_ROC_bad_Y[jj])
     AX_val[jj].plot(mFRF_ROC_good_X[jj],mFRF_ROC_bad_Y[jj], '-bo', mfc='orange', mec='k', markersize=8, linewidth=1, label='Median of all SSE values')
     AX_val[jj].plot(pFRF_ROC_good_X[jj],pFRF_ROC_bad_Y[jj], '-r^', mfc='green', mec='k', markersize=8, linewidth=1, label='Quantile of all SSE values')
     AX_val[jj].plot(tFRF_ROC_good_X[jj],tFRF_ROC_bad_Y[jj], '-yD', mfc='purple', mec='k', markersize=8, linewidth=1, label='N,N+1 threshold SSE values')
@@ -281,8 +278,8 @@ def main(args):
     AX_val[jj].annotate("Algorithm: " + algorithm_name, xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
     AX_val[jj].legend(loc='lower right')
 
-  axs[0,0].set_xlabel('Mean number of flagged good runs')
-  axs[0,0].set_ylabel('Mean number of flagged bad runs')
+  axs[0,0].set_xlabel('Mean number of flagged histograms per good run')
+  axs[0,0].set_ylabel('Mean number of flagged histograms per bad run')
   axs[0,0].plot(mMRF_ROC_good_X,mMRF_ROC_bad_Y, '-bo', mfc='orange', mec='k', markersize=8, linewidth=1, label='Median of all SSE values')
   axs[0,0].plot(pMRF_ROC_good_X,pMRF_ROC_bad_Y, '-r^', mfc='green', mec='k', markersize=8, linewidth=1, label='Quantile of all SSE values')
   axs[0,0].plot(tMRF_ROC_good_X,tMRF_ROC_bad_Y, '-yD', mfc='purple', mec='k', markersize=8, linewidth=1, label='N,N+1 threshold SSE values')
@@ -291,7 +288,7 @@ def main(args):
   axs[0,0].axis(xmin=0,ymin=0)
   axs[0,0].legend(loc='lower right')
 
-  plt.savefig(args.output_dir + "/FRF_MRF_ROC_comparison_" + algorithm_name + ".pdf")
+  plt.savefig(args.output_dir + "/FRF_MRF_ROC_comparison_" + algorithm_name + ".pdf",bbox_inches='tight')
   print("SAVED: " + args.output_dir + "/FRF_MRF_ROC_comparison_" + algorithm_name + ".pdf")
 
 if __name__ == "__main__":

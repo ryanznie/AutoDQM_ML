@@ -199,6 +199,8 @@ class DataFetcher():
 
                 print(len(files))
                 print(len(unique_files))
+                if len(unique_files) < 5:
+                    logger.info("[DataFetcher : get_list_of_files] Only '%s' runs have been selected, which is a very limited data set. Advise use a full set of runs outside of testing." % (len(unique_files)))
 
                 self.files[pd][year] = unique_files
                 self.files["all"] += unique_files
@@ -298,6 +300,8 @@ class DataFetcher():
                     logger.debug("[DataFetcher : load_data] Loading histograms from file %s, run %d" % (file, run_number))
 
                     histograms = self.load_data(file, run_number, self.contents)
+                    if len(histograms) < 5:
+                    logger.info("[DataFetcher : extract_data] Only '%s' histograms have been selected, which is a very limited list. Advise use a full set of runs outside of testing." % (len(histograms)))
                     if not self.data[pd]:
                         keys_list = list(histograms.keys())
                         keys_list = keys_list + ["run_number","year","label"]
