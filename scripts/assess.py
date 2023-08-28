@@ -112,6 +112,7 @@ def main(args):
         algorithms = None
 
     histograms = infer_algorithms(runs, histograms, algorithms)
+    print(histograms)
     #for h, info in histograms.items():
     #    logger.debug("[assess.py] For histogram '%s', found the following anomaly detection algorithms:" % (h))
     #    for a, a_info in info["algorithms"].items():
@@ -121,6 +122,7 @@ def main(args):
     # Print out runs with N highest sse scores for each histogram
     N = 5
     for h, info in histograms.items():
+        print(info)
         for algorithm, algorithm_info in info["algorithms"].items():
             #runs_sorted = runs[awkward.argsort(runs[algorithm_info["score"]], ascending=False)]
             runs_sorted = runs
@@ -142,13 +144,13 @@ def main(args):
                 sse_df_ae[h] = runs_sorted[algorithm_info["score"]]
             
             if any(x in algorithm.lower() for x in ["pca"]):
-       	       	sse_df_pca[h] = runs_sorted[algorithm_info["score"]]
+       	        sse_df_pca[h] = runs_sorted[algorithm_info["score"]]
 
             for i in range(N):
                 logger.info("\t Run number : %d, Anomaly Score : %.2e" % (runs_sorted.run_number[i], runs_sorted[algorithm_info["score"]][i]))
 
-    sse_df = pd.concat([sse_df_ae,sse_df_pca]).reset_index(drop=True)
-    sse_df.to_csv(args.output_dir + "/bad_runs_sse_scores.csv",index=False)
+    #sse_df = pd.concat([sse_df_ae,sse_df_pca]).reset_index(drop=True)
+    #sse_df.to_csv(args.output_dir + "/bad_runs_sse_scores.csv",index=False)
                 
     # Histogram of sse for algorithms
     splits = {
@@ -170,6 +172,8 @@ def main(args):
 
                 h_name = h.replace("/", "").replace(" ", "")
                 save_name = args.output_dir + "/" + h_name + "_sse_%s_%s.pdf" % (split, name)
+                print(recos)
+                print(h_name)
                 make_sse_plot(h_name, recos, save_name)
 
             for algorithm, recos_alg in recos_by_label.items():
