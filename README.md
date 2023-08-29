@@ -109,3 +109,25 @@ git push origin my_new_improvement
 Finally, when you think it's ready to be included in the main branch create a pull request (if you push your changes from the command line, Github should give you a link that you can click to automatically do this.) 
 
 If you think the changes you are making might benefit from discussion, create an "Issue" under the [Issues](https://github.com/AutoDQM/AutoDQM_ML/issues) tab.
+
+## Studies of Large Data using ML
+
+In order to obtain large data sets of SSE scores for histograms across a large number of runs (e.g. all data recorded in 2022), write up a data set config selecting the data file(s) from which to read the eos Prompt or Re-Reco files, and the set of runs of interest (with runs that are a priori known bad runs marked as such). Then select the histograms of interest using a histogram config file. Common use config files are found in the metadata directory. To fetch the data, run the command
+```
+python scripts/fetch_data.py --output_dir "data_fetched/pretraining" --contents "metadata/histogram_lists/myHistList.json" --datasets "metadata/dataset_lists/myDataSetList.json"
+```
+This may need to be run multiple times if using more than one data set e.g. Muon and SingleMuon (necessary for 2022 data) or Muon and JetMET (HLTPhysics is often a suitable replacement for these however) with a large number of (primarily 2D) histograms. The output .parquet file (named for each single data set or "allCollections" for more than one) is then fed to the training module, which is run for each algorithm to obtain a .csv file of SSE scores for all histograms and runs. These scores are calculated following training the algorithm on all the non-bad runs (as marked in the data-fetching stage), and are a Chi2-like measure of the difference between the original histogram and the histogram reconstructed by the algorithm according to the trained NN. This is done as follows:
+```
+python scripts/train.py --input_file "data_fetched/pretraining/myOutputFile.parquet" --output_dir "data_fetched/ae" --algorithm "autoencoder" --tag "myAutoencoder" --histograms "CSV-list-of-histos" --debug
+python scripts/train.py --input_file "data_fetched/pretraining/myOutputFile.parquet" --output_dir "data_fetched/pca" --algorithm "pca" --tag "myPCA" --histograms "CSV-list-of-histos" --debug
+```
+Here, the full set or subset of histograms as feature in your `myHistList.json` file is entered as an argument. A quick way to obtain this list is to run the command
+```
+python scripts/json_to_string.py -i metadata/histogram_lists/myHistList.json
+```
+The output CSV files are then processed to produce ROC curves, which measure the Mean number of Histogram Flags (per each algorithm) per good/bad run (the MHF-ROC curve), and the Fraction of Runs with N histogram Flags (FRF-ROC), where N = 1, 3, and 5 (although this is simple enough to change in the script). This can be done with the following script:
+```
+python scripts/sse_scores_to_roc.py --input_file "data_fetched/ae/myOutputFile_test_ae_runs_and_sse_scores.csv" --output_dir "data_fetched/assessment/"
+python scripts/sse_scores_to_roc.py --input_file "data_fetched/pca/myOutputFile_test_pca_runs_and_sse_scores.csv" --output_dir "data_fetched/assessment/"
+```
+The end result is two plots per algorithm, one with the MHF-ROC curve, and the other with the FRF-ROC curve. In cases where the scores are to be combined, there is a template combiner script `scripts/combine_scores.py` which can plot output using the template `scripts/plot_merged_df.py` script.

@@ -81,13 +81,18 @@ def main(args):
   sse_df = sse_df.sort_values(['label']).reset_index()
   sse_df = sse_df[['run_number','label'] + [col for col in sse_df.columns if (col != 'run_number')&(col != 'label')]]
 
+  sse_df_good = sse_df.loc[sse_df['label'] == 0].reset_index()
+  sse_df_bad = sse_df.loc[sse_df['label'] == 1].reset_index()
+  sse_df_good = sse_df_good[['run_number'] + hist_cols]
+  sse_df_bad = sse_df_bad[['run_number'] + hist_cols]
+
   # new threshold cut-offs per Si's recommendations
-  # 0th cut-off at 1st highest SSE + (1st - 2nd highest)*0.5   
+  # 0th cut-off at 1st highest SSE + (1st - 2nd highest)*0.5
   # 1st cut-off at mean<1st, 2nd> highest SSE
   # Nth cut-off at mean<Nth, N+1th> highest SSE
   cutoffs_across_hists = []
   for histogram in hist_cols:
-    sse_ordered = sorted(sse_df[histogram], reverse=True)
+    sse_ordered = sorted(sse_df_good[histogram], reverse=True)
     cutoff_0 = sse_ordered[0] + 0.5*(sse_ordered[0] - sse_ordered[1])
     cutoff_thresholds = []
     cutoff_thresholds.append(cutoff_0)
@@ -96,19 +101,15 @@ def main(args):
       cutoff_thresholds.append(cutoff_ii)
     cutoffs_across_hists.append(cutoff_thresholds)
 
-  if len(cutoffs_across_hists[0]) < 7:
-    print("There are only " + str(len(cutoffs_across_hists)) + " runs for study, which is a very small number. The script will need modifying to account for this.")
-  else:
-    cutoffs_across_hists = np.array(cutoffs_across_hists)
-
-  sse_df_good = sse_df.loc[sse_df['label'] == 0].reset_index()
-  sse_df_bad = sse_df.loc[sse_df['label'] == 1].reset_index()
-  sse_df_good = sse_df_good[['run_number'] + hist_cols]
-  sse_df_bad = sse_df_bad[['run_number'] + hist_cols]
+  cutoffs_across_hists = np.array(cutoffs_across_hists)
 
   N_bad_hists = [5,3,1]
   tFRF_ROC_good_X = []
   tFRF_ROC_bad_Y = []
+
+  print(cutoffs_across_hists)
+  print(cutoffs_across_hists[0])
+  print(cutoffs_across_hists[:,0])
 
   for nbh_ii in N_bad_hists:
     tFRF_ROC_good_X_init = [0.0]
@@ -147,9 +148,9 @@ def main(args):
   #print(N_bad_hists[jj])
   #print(tFRF_ROC_good_X[jj])
   #print(tFRF_ROC_bad_Y[jj])
-  axs[1].plot(tFRF_ROC_good_X[0],tFRF_ROC_bad_Y[0], '-rD', mfc='purple', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = 5')
-  axs[1].plot(tFRF_ROC_good_X[1],tFRF_ROC_bad_Y[1], '-bo', mfc='yellow', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = 3')
-  axs[1].plot(tFRF_ROC_good_X[2],tFRF_ROC_bad_Y[2], '-g^', mfc='orange', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = 1')  
+  axs[1].plot(tFRF_ROC_good_X[0],tFRF_ROC_bad_Y[0], '-rD', mfc='purple', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[0]))
+  axs[1].plot(tFRF_ROC_good_X[1],tFRF_ROC_bad_Y[1], '-bo', mfc='yellow', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[1]))
+  axs[1].plot(tFRF_ROC_good_X[2],tFRF_ROC_bad_Y[2], '-g^', mfc='orange', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[2]))
   axs[1].axis(xmin=0,xmax=0.4,ymin=0,ymax=0.8)
   axs[1].axline((0, 0), slope=1, linestyle='--',linewidth=0.8,color='gray')
   axs[1].annotate(algorithm_name + " FRF-ROC curve", xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
