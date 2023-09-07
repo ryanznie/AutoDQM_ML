@@ -107,13 +107,9 @@ def main(args):
   tFRF_ROC_good_X = []
   tFRF_ROC_bad_Y = []
 
-  print(cutoffs_across_hists)
-  print(cutoffs_across_hists[0])
-  print(cutoffs_across_hists[:,0])
-
   for nbh_ii in N_bad_hists:
-    tFRF_ROC_good_X_init = [0.0]
-    tFRF_ROC_bad_Y_init = [0.0]
+    tFRF_ROC_good_X_init = []
+    tFRF_ROC_bad_Y_init = []
     for cutoff_index in range(len(cutoffs_across_hists[0,:])):
       t_cutoff_index_g_FRF_rc = count_fraction_runs_above(sse_df_good, cutoffs_across_hists[:,cutoff_index], nbh_ii)
       t_cutoff_index_b_FRF_rc = count_fraction_runs_above(sse_df_bad, cutoffs_across_hists[:,cutoff_index], nbh_ii)
@@ -137,17 +133,18 @@ def main(args):
 
   tMHF_ROC_good_X = sorted(tMHF_ROC_good_X)
   tMHF_ROC_bad_Y = sorted(tMHF_ROC_bad_Y)
-  #print("Mean values")
-  #print(tMHF_ROC_good_X)
-  #print(tMHF_ROC_bad_Y)
+  print("Mean values")
+  print(tMHF_ROC_good_X)
+  print(tMHF_ROC_bad_Y)
 
   fig, axs = plt.subplots(ncols=2,nrows=1,figsize=(12,6))
 
   axs[1].set_xlabel('Fraction of good runs with at least N histogram flags')
   axs[1].set_ylabel('Fraction of bad runs with at least N histogram flags')
-  #print(N_bad_hists[jj])
-  #print(tFRF_ROC_good_X[jj])
-  #print(tFRF_ROC_bad_Y[jj])
+  for jj in range(len(N_bad_hists)):
+    print(N_bad_hists[jj])
+    print(tFRF_ROC_good_X[jj])
+    print(tFRF_ROC_bad_Y[jj])
   axs[1].plot(tFRF_ROC_good_X[0],tFRF_ROC_bad_Y[0], '-rD', mfc='purple', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[0]))
   axs[1].plot(tFRF_ROC_good_X[1],tFRF_ROC_bad_Y[1], '-bo', mfc='yellow', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[1]))
   axs[1].plot(tFRF_ROC_good_X[2],tFRF_ROC_bad_Y[2], '-g^', mfc='orange', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[2]))
