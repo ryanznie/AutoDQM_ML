@@ -119,9 +119,7 @@ def main(args):
     }        
     histograms = { x : {"algorithms" : {}} for x in args.histograms.split(",") }
 
-    #runs = pd.read_csv(args.input_file)
     runs = awkward.from_parquet(args.input_file)
-    print(runs)
 
     if args.algorithms is not None:
         algorithms = args.algorithms.split(",")
@@ -161,10 +159,7 @@ def main(args):
             plot_rescaled_score_hist(score_hist_data, h, args.output_dir + "/" + h.replace("/", "").replace(" ", "") + "/" + "score_hist.png")
     # Histogram of sse for algorithms
     splits = {
-            "train_label" : [("train", 0), ("test", 1)],
-            "label" : [("anomalous", kANOMALOUS), ("good", kGOOD)]
-    }
-    print(histograms)
+            "label" : [("train", 0), ("test", 1)]}
     for h, info in histograms.items():
         for split, split_info in splits.items():
             recos_by_label = { k : {} for k,v in info["algorithms"].items() }
@@ -180,8 +175,6 @@ def main(args):
 
                 h_name = h.replace("/", "").replace(" ", "")
                 save_name = args.output_dir + "/" + h_name + "/sse_%s_%s.pdf" % (split, name)
-                print(h_name)
-                print(recos)
                 make_sse_plot(h_name, recos, save_name)
 
             for algorithm, recos_alg in recos_by_label.items():
@@ -195,7 +188,6 @@ def main(args):
     labeled_runs_cut = {h:runs.run_number < 0 for h in histograms}
     for h, info in histograms.items():
         for name, id in splits["label"]:
-            print(id)
             cut = runs['label'] == id
             labeled_runs_cut[h] = labeled_runs_cut[h] | cut
             runs_set = runs[cut]
