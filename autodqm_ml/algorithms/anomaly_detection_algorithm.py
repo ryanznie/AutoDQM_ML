@@ -122,7 +122,7 @@ class AnomalyDetectionAlgorithm():
             self.df[histogram + "_reco_" + self.tag] = reconstructed_hist
 
 
-    def save(self, histograms = {}, tag = "", algorithm = ""):
+    def save(self, histograms = {}, tag = "", algorithm = "", reco_assess_plots = False):
         """
 
         """
@@ -130,9 +130,10 @@ class AnomalyDetectionAlgorithm():
 
         self.output_file = "%s/%s_%s_runs_and_sse_scores.csv" % (self.output_dir, self.input_file.split("/")[-1].replace(".parquet", ""), tag)
 
-        output_parquet = "%s/%s.parquet" % (self.output_dir, self.input_file.split("/")[-1].replace(".parquet", ""))
-        awkward.to_parquet(self.df, output_parquet)
-        logger.info("[AnomalyDetectionAlgorithm : save] Saving output for plot assessment '%s'." % (output_parquet))
+        if reco_assess_plots == True:
+            output_parquet = "%s/%s.parquet" % (self.output_dir, self.input_file.split("/")[-1].replace(".parquet", ""))
+            awkward.to_parquet(self.df, output_parquet)
+            logger.info("[AnomalyDetectionAlgorithm : save] Saving output for plot assessment '%s'." % (output_parquet))
 
         columns_to_remove = list(histograms.keys())
         reco_columns = [hist_name + "_reco_" + tag for hist_name in columns_to_remove]

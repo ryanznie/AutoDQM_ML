@@ -125,7 +125,11 @@ Here, the full set or subset of histograms as feature in your `myHistList.json` 
 ```
 python scripts/json_to_string.py -i metadata/histogram_lists/myHistList.json
 ```
-The output CSV files are then processed to produce ROC curves, which measure the Mean number of Histogram Flags (per each algorithm) per good/bad run (the MHF-ROC curve), and the Fraction of Runs with N histogram Flags (FRF-ROC), where N = 1, 3, and 5 (although this is simple enough to change in the script). This can be done with the following script:
+FOR SMALL ORIGINAL V RECO STUDIES: If interested in using the `scripts/assess.py` macro to generate plots comparing original and reconstructed histogram distributions (i.e. the original assessment version of the repo), add the argument `--reco_assess_plots True` to the `scripts/train.py` stage to output a parquet file containing the relevant histogram information to do this. This is recommended for a subset of the runs fetched, and a subset of the histograms fetched, due to the exhaustive nature of generating the plots. A typical plotting assessment command for this would be
+```
+python scripts/assess.py --output_dir "assess_data_trained" --input_file "data_fetched/ae/HLTPhysics.parquet" --histograms "CSV-list-of-histos" --algorithms "myAutoencoder" --runs "35XXXX,36XXXX" --debug
+```
+The output CSV files from the training step are then processed to produce ROC curves, which measure the Mean number of Histogram Flags (per each algorithm) per good/bad run (the MHF-ROC curve), and the Fraction of Runs with N histogram Flags (FRF-ROC), where N = 1, 3, and 5 (although this is simple enough to change in the script). This can be done with the following script:
 ```
 python scripts/sse_scores_to_roc.py --input_file "data_fetched/ae/myOutputFile_test_ae_runs_and_sse_scores.csv" --output_dir "data_fetched/assessment/"
 python scripts/sse_scores_to_roc.py --input_file "data_fetched/pca/myOutputFile_test_pca_runs_and_sse_scores.csv" --output_dir "data_fetched/assessment/"
