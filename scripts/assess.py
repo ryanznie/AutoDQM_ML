@@ -119,6 +119,7 @@ def main(args):
     }        
     histograms = { x : {"algorithms" : {}} for x in args.histograms.split(",") }
 
+    #runs = pd.read_csv(args.input_file)
     runs = awkward.from_parquet(args.input_file)
     print(runs)
 
