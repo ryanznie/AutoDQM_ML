@@ -90,6 +90,13 @@ parser.add_argument(
     default = None
 )
 parser.add_argument(
+    "--reco_assess_plots",
+    help = "Specify whether to output a parquet file of histograms to produce original vs reconstruction plots with scripts/assess.py",
+    type = bool,
+    required = False,
+    default = False
+)
+parser.add_argument(
     "--debug",
     help = "run logger in DEBUG mode (INFO is default)",
     required = False,
@@ -173,4 +180,4 @@ if isinstance(algorithm, MLAlgorithm):
 algorithm.predict()
 
 # Save model and new df with score zipped in
-algorithm.save(histograms = histograms, tag = args.tag, algorithm = args.algorithm)
+algorithm.save(histograms = histograms, tag = args.tag, algorithm = args.algorithm, reco_assess_plots = args.reco_assess_plots)
