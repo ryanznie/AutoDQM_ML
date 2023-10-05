@@ -4,6 +4,7 @@ import json
 # Create an argument parser
 parser = argparse.ArgumentParser(description="Convert JSON data to a comma-separated string.")
 parser.add_argument('-i', '--input', type=str, help='Path to the input JSON file')
+parser.add_argument('-d', '--detector', type=str, help='Enter detector (CSC, DT, L1T, etc.)')
 
 # Parse the command-line arguments
 args = parser.parse_args()
@@ -14,6 +15,12 @@ if args.input:
 else:
     print("Please provide the input JSON file using the -i flag.")
     exit()
+if args.detector:
+        detector = args.detector
+else:
+    print("Please provide detector")
+    exit()
+
 
 # Load the JSON data from the file
 with open(input_path, 'r') as file:
