@@ -4,7 +4,10 @@ import uproot
 import numpy
 import pandas
 import awkward
+from collections import defaultdict
+import itertools
 from tqdm import tqdm
+import re
 
 import logging
 logger = logging.getLogger(__name__)
@@ -104,9 +107,6 @@ class DataFetcher():
             elif info["good_runs"] is not None:
                 logger.info("\t and all other runs will be assumed to be 'bad' (with 'label' = 1).")
 
-
-
-
         self.get_list_of_files()
         self.extract_data()
         self.write_data()
@@ -133,9 +133,77 @@ class DataFetcher():
                 for file in files:
                     logger.debug("\t %s" % file)
 
-                self.files[pd][year] = files
-                self.files["all"] += files
+                # RW Take prompt or else re-reco ROOT files from EOS
+                #files = [i for i in files if "PromptReco" not in i]
+                files = [i for i in files if "pilot" not in i]
+                files = [i for i in files if "Backfill" not in i]
 
+                # RW Function to find newest file first according to date (applicable to re-reco files)
+                def custom_sort_key(string):
+                    match = re.search(r'(\d+)__' + re.escape(pd) + r'__Run2022C-(\d{2})([A-Za-z]{3})(\d{4})', string)
+                    if match:
+                        index, day, month, year = match.groups()
+                        months = {'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12}
+                        month_num = months[month]
+                        return (int(index), int(year), month_num, int(day))
+                    return (0, 0, 0, 0)
+
+
+                ## check if list of run exist in dataset list, if yes take, if not define from files list
+                run_nums = []
+                if info["runs"] is not None:
+                    run_nums = info['runs']
+                else:
+                    for f in files:
+                        loc = f.find('_R000') + 5
+                        run_nums.append(f[loc:loc+6])
+                ## loop through run list, grab all file names in files that matches the run number
+                run_nums = list(set(run_nums))
+                unique_files = []
+                for run_num in run_nums:
+                    files_with_num = [x for x in files if run_num in x]
+                    ## if production is defined in yaml, get the first file that matches
+                    if not info['productions'][0] == '':
+                        ## this grabs the first file that matches the production defined in yaml
+                        ## next() grabs the first that matches the condition.
+                        ## This is faster than list comprehension then grabbing the 0th element
+                        unique_files.append(next(s for s in files_with_num if info['productions'][0] in s))
+                    ## else grab the files with preference UL > PromptReco > Re-reco
+                    else:
+                        check_string = '\t'.join(files_with_num)
+                        if 'UL' in check_string:
+                            unique_files.append(next(s for s in files_with_num if 'UL' in s))
+                        elif 'PromptReco' in check_string:
+                            unique_files.append(next(s for s in files_with_num if 'PromptReco' in s))
+                        else:
+                            pdsize = len(pd)
+                            runs_with_dates = [i.partition("DQM_V0")[2][0:(36+pdsize)] for i in files_with_num]
+                            sorted_runs_with_dates = sorted(runs_with_dates, key=custom_sort_key, reverse=True)
+
+                            all_runs = [i.partition("DQM_V0")[2][0:14] for i in files_with_num]
+                            unique_runs = list(set(all_runs))
+
+                            unique_files_with_date = []
+                            for unique_run in unique_runs:
+                                for eachRunWithDate in sorted_runs_with_dates:
+                                    if unique_run in eachRunWithDate:
+                                        unique_files_with_date.append(eachRunWithDate)
+                                        break
+
+                            for uniqueRunWithDate in unique_files_with_date:
+                                for eachFile in files:
+                                    if uniqueRunWithDate in eachFile:
+                                        unique_files.append(eachFile)
+                                        break
+
+
+                print(len(files))
+                print(len(unique_files))
+                if len(unique_files) < 5:
+                    logger.info("[DataFetcher : get_list_of_files] Only '%s' runs have been selected, which is a very limited data set. Advise use a full set of runs outside of testing." % (len(unique_files)))
+
+                self.files[pd][year] = unique_files
+                self.files["all"] += unique_files
 
     @staticmethod
     def construct_eos_path(base_path, pd, year):
@@ -172,6 +240,8 @@ class DataFetcher():
             if dir == "":
                 continue
             if ".root" in dir: # this is already a root file
+                if ".dqminfo" in dir:
+                    continue
                 file = dir
                 if not any(prod in file for prod in datasets["productions"]): # check if file matches any of the specified productions
                     continue
@@ -184,13 +254,14 @@ class DataFetcher():
                 files.append(file)
             else: # this is a subdir or not a root file
                 if datasets["runs"] is not None:
-                    run_prefix = DataFetcher.get_run_prefix(dir)
+                    run_prefix = DataFetcher.get_run_prefix(dir)[3:]
+                    #run_prefix = run_prefix[3:]
                     if not any(run_prefix in run for run in datasets["runs"]): # check if any specified runs fall in the run range for this directory
                         continue
                 files += DataFetcher.get_files(dir, year, datasets, short) # run recursively on subdirs
 
             if short:
-                if len(files) > 2:
+                if len(files) > 20:
                     break 
 
         for idx, file in enumerate(files):
@@ -216,20 +287,27 @@ class DataFetcher():
                     if self.datasets[year]["bad_runs"] is not None:
                         if str(run_number) in self.datasets[year]["bad_runs"]:
                             label = 1 # bad/anomalous
-                        elif self.datasets[year]["good_runs"] is None:
+                        #elif self.datasets[year]["good_runs"] is not None:
+                        else:
                             label = 0 # if only bad_runs was specified, mark everything not in bad_runs as good
 
-                    if self.datasets[year]["good_runs"] is not None:
-                        if str(run_number) in self.datasets[year]["good_runs"]:
-                            label = 0 # good/not anomalous
-                        elif self.datasets[year]["bad_runs"] is None:
-                            label = 1 # if only good_runs was specified, mark everything not in good_runs as bad
+                    #if self.datasets[year]["good_runs"] is not None:
+                    #    if str(run_number) in self.datasets[year]["good_runs"]:
+                    #        label = 0 # good/not anomalous
+                    #    elif self.datasets[year]["bad_runs"] is None:
+                    #        label = 1 # if only good_runs was specified, mark everything not in good_runs as bad
 
                     logger.debug("[DataFetcher : load_data] Loading histograms from file %s, run %d" % (file, run_number))
 
-                    histograms = self.load_data(file, run_number, self.contents) 
+                    histograms = self.load_data(file, run_number, self.contents)
+                    if len(histograms) < 5:
+                    logger.info("[DataFetcher : extract_data] Only '%s' histograms have been selected, which is a very limited list. Advise use a full set of runs outside of testing." % (len(histograms)))
                     if not self.data[pd]:
-                        self.data[pd] = histograms
+                        keys_list = list(histograms.keys())
+                        keys_list = keys_list + ["run_number","year","label"]
+                                                
+                        for key in keys_list:
+                            self.data[pd][key] = []
 
                     if histograms is not None:
                         histograms["run_number"] = [run_number]
@@ -237,7 +315,6 @@ class DataFetcher():
                         histograms["label"] = [label]
                         for k, v in histograms.items():
                             self.data[pd][k] += v
-                        
 
     def load_data(self, file, run_number, contents): 
         """
@@ -272,7 +349,7 @@ class DataFetcher():
 
             for subsystem, histogram_list in contents.items(): 
                 for hist in histogram_list:
-                    histogram_path = DataFetcher.construct_histogram_path(HIST_PATH, run_number, subsystem, hist) 
+                    histogram_path = DataFetcher.construct_histogram_path(HIST_PATH, run_number, subsystem, hist)
                     hist_data[subsystem + "/" + hist] = [f[histogram_path].values()]
 
         logger.debug("[DataFetcher : load_data] Histogram contents:")
@@ -327,7 +404,6 @@ class DataFetcher():
         # this is trivial now, but may get more complicated
         return base_path.format(run_number) + subsystem + "/" + histogram
 
-
     def write_data(self):
         """
         Write dataframe -> parquet file for each primary dataset.
@@ -338,13 +414,50 @@ class DataFetcher():
         """
         os.system("mkdir -p %s/" % self.output_dir) 
 
-        for pd in self.pds:
-            array = awkward.Array(self.data[pd])
-            if array is not None:
-                output_file = "%s/%s.parquet" % (self.output_dir, pd)
-                logger.info("[DataFetcher : write_data] Writing histograms to output file '%s'" % (output_file))
-                awkward.to_parquet(array, output_file) 
+        # RW adapted to create a single Parquet file containing all collections chosen for use in training later (SingleMuon becomes Muon during Run 2022C)
+        array_of_dfs = []
 
+        if len(self.pds) > 1:
+
+            for pd in self.pds:
+
+                array = awkward.Array(self.data[pd])
+
+                if pd == "SingleMuon":
+                    self.data[pd]['collection'] = ["Muon"] * len(self.data[pd]['year'])
+                else:
+                    self.data[pd]['collection'] = [pd] * len(self.data[pd]['year'])
+            
+                array_of_dfs.append(self.data[pd])
+                if array is not None:
+                    output_file = "%s/%s.parquet" % (self.output_dir, pd)
+                    logger.info("[DataFetcher : write_data] Writing histograms to output file '%s'" % (output_file))
+                    awkward.to_parquet(array, output_file) 
+
+            pdalldict = defaultdict(list)
+ 
+            for d in array_of_dfs:
+                for key, value in d.items():
+                    pdalldict[key].append(value)
+
+            for key, value in pdalldict.items():
+                pdalldict[key] = [K for sublist in value for K in sublist]
+
+            del pdalldict['collection']
+            bigarray = awkward.Array(pdalldict)
+
+            if bigarray is not None:
+                output_file = "%s/%s.parquet" % (self.output_dir, "AllCollections")
+                logger.info("[DataFetcher : write_data] Writing histograms to output file '%s'" % (output_file))
+                awkward.to_parquet(bigarray, output_file)
+
+        else:
+            for pd in self.pds:
+                array = awkward.Array(self.data[pd])
+                if array is not None:
+                    output_file = "%s/%s.parquet" % (self.output_dir, pd)
+                    logger.info("[DataFetcher : write_data] Writing histograms to output file '%s'" % (output_file))
+                    awkward.to_parquet(array, output_file)
 
     def write_summary(self):
         """

@@ -1,0 +1,21 @@
+{
+    "primary_datasets" : ["JetMET"],
+    "years" : {
+        "2022" : {
+            "productions" : ["2022"],
+            "eras" : ["C"],
+            "bad_runs" : ["355989","355990","355994","355995","355996","356175","356375","356529","356426","356378","356431","356468","356475","356375","356383","356385","356377","356581",
+                          "356467","356530","356466","356469","356614","356526","356524","356474","356371","356528","356470","356309","356527","356525","356321","356384","356427","356432",
+                          "356709","356719","356720","356721","356722","356788","356789","356810","356902","356906","356950","357096","357098"],
+            "comments" : ["These comments are taken from https://indico.cern.ch/event/1188725/contributions/4996084/attachments/2490952/4277759/DC_report_9_Aug.pdf, https://indico.cern.ch/event/1190333/contributions/5002709/attachments/2493499/4282182/Data_Certification_report_16_Aug.pdf, https://indico.cern.ch/event/1191225/contributions/5006889/attachments/2496209/4287210/Data_Certification_report_23rd_Aug_set1.pdf",
+                          "355989,355990,355994,355995,355996,356175: trigger deadtime > 10%",
+                          "356375,356529,356426,356378,356431,356468,356475,356375,356383,356385,356377,356581,356467,356530,356466,356469,356614,356526,356524,356474,356371,356528,356470,356309,356527,356525,356321,356384,356427,356432: Large trigger deadtime caused by HCAL",
+                          "356709,356719,356720,356721,356722: Significant L1 jet prefiring",
+                          "356788,356789,356810: L1 jet prefiring",
+       	       	       	  "356902: High deadtime (due to tracker FEDs) in physically meaningful lumisections",
+                          "356906,356950: Large trigger deadtime",
+       	       	       	  "357096,357098: HCAL in local. L1T is good"
+                         ]
+        }
+    }
+}

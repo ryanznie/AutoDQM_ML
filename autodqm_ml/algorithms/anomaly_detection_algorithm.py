@@ -3,6 +3,7 @@ import pandas
 import numpy
 import awkward
 import json
+import csv
 
 from autodqm_ml import utils
 from autodqm_ml.data_formats.histogram import Histogram
@@ -11,9 +12,7 @@ from autodqm_ml.constants import kANOMALOUS, kGOOD
 import logging
 logger = logging.getLogger(__name__)
 
-
-
-DEFAULT_COLUMNS = ["run_number", "train_label"] # columns which should always be read from input df
+DEFAULT_COLUMNS = ["run_number", "label"] # columns which should always be read from input df
 
 class AnomalyDetectionAlgorithm():
     """
@@ -30,7 +29,8 @@ class AnomalyDetectionAlgorithm():
 
         # These arguments will be overwritten if provided in kwargs
         self.output_dir = "output"
-        self.tag = "test"
+        #self.tag = ""
+        #self.algorithm = ""
         self.histograms = {}
         self.input_file = None
         self.remove_low_stat = True
@@ -50,7 +50,7 @@ class AnomalyDetectionAlgorithm():
         :type histograms: dict. Default histograms = {}
         :param train_frac: fraction of dataset to be kept as training data. Must be between 0 and 1. 
         :type train_frac: float. Default train_frac = 0.0
-        :param remove_low_stat: removes runs containing histograms with low stats. Low stat threshold is 10000 events.
+        :param remove_low_stat: removes runs containing histograms with low stats. Low stat threshold is 1000 events.
         :type remove_low_stat: bool. remove_low_stat = False
         """
         if self.data_is_loaded:
@@ -79,7 +79,6 @@ class AnomalyDetectionAlgorithm():
 
         # Load dataframe
         df = awkward.from_parquet(self.input_file)
-        
        
         # Set helpful metadata
         for histogram, histogram_info in self.histograms.items():
@@ -93,55 +92,6 @@ class AnomalyDetectionAlgorithm():
             for x in a.shape:
                 self.histograms[histogram]["n_bins"] *= x 
 
-        if not "train_label" in df.fields: # don't overwrite if a train/test split was already determined
-            if self.train_highest_only: #if desired, prioritize high-stat runs in train set
-                histogram = next(iter(self.histograms.items()))[0]
-                
-		# Sum up all entires in histogram, order, then partition by training fraction
-                logger.debug("[AnomalyDetectionAlgorithm : load_data] Assigning training/test set labels based on run stats, using histogram '%s'. For random train/test splitting, set train_highest_only to False (default) " % (histogram))
-                df["train_label"] = awkward.sum(df[histogram], axis = -1)
-                if self.histograms[histogram]["n_dim"] == 2:
-                    df["train_label"] = awkward.sum(df["train_label"], axis = -1)
-                df["train_label"] = awkward.argsort(df["train_label"])
-                
-                if train_frac > 0:
-                    partition = int((1 - train_frac)*len(df))
-                else:
-                    logger.debug("[AnomalyDetectionAlgorithm : load_data] No Training fraction given, using 50/50 train/test split.")
-                    partition = int(0.5*len(sorted_stats))
-                
-                df["train_label"] = df["train_label"] >= partition
-                         
-            elif train_frac > 0:
-                df["train_label"] = numpy.random.choice(2, size = len(df), p = [train_frac, 1 - train_frac]) # 0 = train, 1 = test, -1 = don't use in training or testing
-                df["train_label"] = awkward.where(
-                        df.label == kANOMALOUS,
-                        awkward.ones_like(df.label) * -1, # set train label for anomalous events to -1 so they aren't used in training or testing sets
-                        df.train_label # otherwise, keep the same test/train label as before
-                )
-            else:
-                df["train_label"] = numpy.ones(len(df)) * 1
-
-        # Keep only the necessary columns in dataframe
-        #df = df[DEFAULT_COLUMNS + list(self.histograms.keys())] 
-        
-        if self.remove_low_stat:
-            logger.debug("[anomaly_detection_algorithm : load_data] Removing low stat runs.")
-            cut = df.run_number > 0 # dummy all True cut
-            for histogram, histogram_info in self.histograms.items():
-                n_entries = awkward.sum(df[histogram], axis = -1)
-                if histogram_info["n_dim"] == 2:
-                    n_entries = awkward.sum(n_entries, axis = -1)
-
-                if awkward.all((n_entries <= 1.000001) & (n_entries >= 0.999999)): # was already normalized in a previous train.py run which would have removed low stat bins as well, so continue
-                    continue
-                else:
-                    cut = cut & (n_entries >= self.low_stat_threshold) # FIXME: hard-coded to 10k for now  THIS IS FIXED (Not hard coded any more)
-            n_runs_pre = len(df)
-            n_runs_post = awkward.sum(cut)
-            logger.debug("[anomaly_detection_algorithm : load_data] Removing %d/%d runs in which one or more of the requested histograms had less than %d entries." % (n_runs_pre - n_runs_post, n_runs_pre, self.low_stat_threshold))
-            df = df[cut]
-
         for histogram, histogram_info in self.histograms.items():
             # Normalize (if specified in histograms dict)
             if "normalize" in histogram_info.keys():
@@ -152,12 +102,12 @@ class AnomalyDetectionAlgorithm():
 
                     logger.debug("[anomaly_detection_algorithm : load_data] Scaling all entries in histogram '%s' by the sum of total entries." % histogram)
                     df[histogram] = df[histogram] * (1. / sum) 
-        self.n_train = awkward.sum(df.train_label == 0)
-        self.n_test = awkward.sum(df.train_label == 1)
+        self.n_train = awkward.sum(df.label == 0)
+        self.n_bad_runs = awkward.sum(df.label != 0)
         self.df = df
         self.n_histograms = len(list(self.histograms.keys()))
 
-        logger.debug("[AnomalyDetectionAlgorithm : load_data] Loaded data for %d histograms with %d events in training set and %d events in testing set." % (self.n_histograms, self.n_train, self.n_test))
+        logger.debug("[AnomalyDetectionAlgorithm : load_data] Loaded data for %d histograms with %d events in training set, excluding the %d bad runs." % (self.n_histograms, self.n_train, self.n_bad_runs))
 
         self.data_is_loaded = True
 
@@ -172,17 +122,54 @@ class AnomalyDetectionAlgorithm():
             self.df[histogram + "_reco_" + self.tag] = reconstructed_hist
 
 
-    def save(self):
+    def save(self, histograms = {}, tag = "", algorithm = "", reco_assess_plots = False):
         """
 
         """
         os.system("mkdir -p %s" % self.output_dir)
 
-        self.output_file = "%s/%s.parquet" % (self.output_dir, self.input_file.split("/")[-1].replace(".parquet", ""))
-        logger.info("[AnomalyDetectionAlgorithm : save] Saving output with additional fields to file '%s'." % (self.output_file))
-        awkward.to_parquet(self.df, self.output_file)
+        self.output_file = "%s/%s_%s_runs_and_sse_scores.csv" % (self.output_dir, self.input_file.split("/")[-1].replace(".parquet", ""), tag)
+
+        if reco_assess_plots == True:
+            output_parquet = "%s/%s.parquet" % (self.output_dir, self.input_file.split("/")[-1].replace(".parquet", ""))
+            awkward.to_parquet(self.df, output_parquet)
+            logger.info("[AnomalyDetectionAlgorithm : save] Saving output for plot assessment '%s'." % (output_parquet))
+
+        columns_to_remove = list(histograms.keys())
+        reco_columns = [hist_name + "_reco_" + tag for hist_name in columns_to_remove]
+        score_columns = [hist_name + "_score_" + tag for hist_name in columns_to_remove]
+        rename_columns_dict = {old_col : new_col for old_col, new_col in zip(score_columns, columns_to_remove)}
+        columns_to_remove = columns_to_remove + reco_columns
+        
+        filtered_fields = {field: self.df[field] for field in self.df.fields if field not in columns_to_remove}
+        self.df = awkward.zip(filtered_fields)
+
+        #filtered_fields_for_assess_plots = {field: self.df[field] for field in self.df.fields if field not in score_columns}
+        #new_df = awkward.zip(filtered_fields_for_assess_plots)
+
+        for old_name, new_name in rename_columns_dict.items():
+            self.df = awkward.with_field(self.df, self.df[old_name], new_name)
+
+        if algorithm.lower() in ["ae","autoencoder"]:
+            algo_name = "ae"
+        elif algorithm.lower() == "pca":
+            algo_name = "pca"
+
+        if algo_name is not None:
+            new_field = awkward.Array([algo_name] * len(self.df))
+            self.df = awkward.with_field(self.df, new_field, "algo")
+
+        list_of_dicts = awkward.to_list(self.df)
+        fieldnames = list_of_dicts[0].keys()
+
+        with open(self.output_file, 'w', newline='') as csv_file:
+            # Create a CSV writer object
+            csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            csv_writer.writeheader()
+            csv_writer.writerows(list_of_dicts)
 
         self.config_file = "%s/%s_%s.json" % (self.output_dir, self.name, self.tag)
+        logger.info("[AnomalyDetectionAlgorithm : save] Saving output for large data SSE assessment '%s'." % (self.output_file))
         config = {}
         for k,v in vars(self).items():
             if utils.is_json_serializable(v):

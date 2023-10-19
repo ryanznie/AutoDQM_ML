@@ -15,7 +15,7 @@ from autodqm_ml.algorithms.ml_algorithm import MLAlgorithm
 from autodqm_ml import utils
 
 DEFAULT_OPT = {
-        "batch_size" : 128, 
+        "batch_size" : 128,
         "val_batch_size" : 1024,
         "learning_rate" : 0.001,
         "n_epochs" : 1000,
@@ -127,6 +127,8 @@ class AutoEncoder(MLAlgorithm):
             callbacks = []
             if self.config["early_stopping"]:
                 callbacks.append(keras.callbacks.EarlyStopping(patience = self.config["early_stopping_rounds"]))
+            #print(self.config["n_components"])
+            #print(list(inputs.values())[0])
 
             model.fit(
                     inputs,
@@ -154,7 +156,6 @@ class AutoEncoder(MLAlgorithm):
             for name, pred in predictions.items():
                 hist_name = self.histogram_name_map[name.replace("output_", "")] # shape [n_runs, histogram dimensions, 1]
                 original_hist = self.df[hist_name] # shape [n_runs, histogram dimensions]
-
                 reconstructed_hist = awkward.flatten( # change shape from [n_runs, histogram dimensions, 1] -> [n_runs, histogram dimensions]
                         awkward.from_numpy(pred),
                         axis = -1 
@@ -180,9 +181,9 @@ class AutoEncoder(MLAlgorithm):
         outputs = {}
 
         if split == "train":
-            cut = self.df.train_label == 0
+            cut = self.df.label == 0
         elif split == "test":
-            cut = self.df.train_label == 1
+            cut = self.df.label == 1
         else:
             cut = self.df.run_number >= 0 # dummy all True cut
 

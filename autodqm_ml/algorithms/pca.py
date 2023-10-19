@@ -90,16 +90,14 @@ class PCA(MLAlgorithm):
 
         :param histogram: name of histogram to grab, which could be a 1d or a 2d histogram
         :type histogram: str
-        :param split: which set of runs to grab -- 'train', 'test', or 'all'
+        :param split: which set of runs to grab -- 'train' for good runs (when training), or 'all' for SSE score evaluation
         :type split: str, defaults to 'all'
         :return: a 1d histogram (flattened if originally a 2d histogram)
         :rtype: awkward.Array
         """
 
         if split == "train":
-            runs = self.df[self.df.train_label == 0]
-        elif split == "test":
-            runs = self.df[self.df.train_label == 1]
+            runs = self.df[self.df.label == 0]
         elif split == "all":
             runs = self.df
 
