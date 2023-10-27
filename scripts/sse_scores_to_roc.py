@@ -141,6 +141,7 @@ def main(args):
 
   axs[1].set_xlabel('Fraction of good runs with at least N histogram flags')
   axs[1].set_ylabel('Fraction of bad runs with at least N histogram flags')
+
   # commented out but keep for the aggregated scores plots
   #for jj in range(len(N_bad_hists)):
   #  print(N_bad_hists[jj])
