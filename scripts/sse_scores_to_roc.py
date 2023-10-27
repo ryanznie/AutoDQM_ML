@@ -72,9 +72,7 @@ def main(args):
   if algorithm_name == "BETAB": algorithm_name = "Beta_Binomial"
 
   sse_df = sse_df.loc[:,~sse_df.columns.duplicated()].copy()
-  print(sse_df.columns)  
   hist_cols = [col for col in sse_df.columns if '_score_' in col]
-  print(hist_cols)
   hist_dict = {each_hist: "max" for each_hist in hist_cols}
 
   sse_df = sse_df.groupby(['run_number','label'])[hist_cols].agg(hist_dict).reset_index()
@@ -134,18 +132,20 @@ def main(args):
 
   tMHF_ROC_good_X = sorted(tMHF_ROC_good_X)
   tMHF_ROC_bad_Y = sorted(tMHF_ROC_bad_Y)
-  print("Mean values")
-  print(tMHF_ROC_good_X)
-  print(tMHF_ROC_bad_Y)
+  # commented out but keep for the aggregated scores plots
+  #print("Mean values")
+  #print(tMHF_ROC_good_X)
+  #print(tMHF_ROC_bad_Y)
 
   fig, axs = plt.subplots(ncols=2,nrows=1,figsize=(12,6))
 
   axs[1].set_xlabel('Fraction of good runs with at least N histogram flags')
   axs[1].set_ylabel('Fraction of bad runs with at least N histogram flags')
-  for jj in range(len(N_bad_hists)):
-    print(N_bad_hists[jj])
-    print(tFRF_ROC_good_X[jj])
-    print(tFRF_ROC_bad_Y[jj])
+  # commented out but keep for the aggregated scores plots
+  #for jj in range(len(N_bad_hists)):
+  #  print(N_bad_hists[jj])
+  #  print(tFRF_ROC_good_X[jj])
+  #  print(tFRF_ROC_bad_Y[jj])
   axs[1].plot(tFRF_ROC_good_X[0],tFRF_ROC_bad_Y[0], '-rD', mfc='purple', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[0]))
   axs[1].plot(tFRF_ROC_good_X[1],tFRF_ROC_bad_Y[1], '-bo', mfc='yellow', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[1]))
   axs[1].plot(tFRF_ROC_good_X[2],tFRF_ROC_bad_Y[2], '-g^', mfc='orange', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[2]))
