@@ -142,10 +142,20 @@ class AnomalyDetectionAlgorithm():
         columns_to_remove = columns_to_remove + reco_columns
         
         filtered_fields = {field: self.df[field] for field in self.df.fields if field not in columns_to_remove}
+        print("Here")
+        print(histograms)
+        print(" ")
+        print("reco_columns")
+        print(reco_columns)
+        print("score_columns")
+        print(score_columns)
+        print("rename_columns_dict")
+        print(rename_columns_dict)
+        print("columns_to_remove")
+        print(columns_to_remove)
+        print(filtered_fields)
+        print(awkward.num(filtered_fields))
         self.df = awkward.zip(filtered_fields)
-
-        #filtered_fields_for_assess_plots = {field: self.df[field] for field in self.df.fields if field not in score_columns}
-        #new_df = awkward.zip(filtered_fields_for_assess_plots)
 
         for old_name, new_name in rename_columns_dict.items():
             self.df = awkward.with_field(self.df, self.df[old_name], new_name)

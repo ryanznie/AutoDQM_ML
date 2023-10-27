@@ -72,8 +72,9 @@ def main(args):
   if algorithm_name == "BETAB": algorithm_name = "Beta_Binomial"
 
   sse_df = sse_df.loc[:,~sse_df.columns.duplicated()].copy()
-  
-  hist_cols = [col for col in sse_df.columns if 'Run summary' in col]
+  print(sse_df.columns)  
+  hist_cols = [col for col in sse_df.columns if '_score_' in col]
+  print(hist_cols)
   hist_dict = {each_hist: "max" for each_hist in hist_cols}
 
   sse_df = sse_df.groupby(['run_number','label'])[hist_cols].agg(hist_dict).reset_index()

@@ -37,7 +37,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--algorithms",
-        help = "csv list of algorithmn names to assess",
+        help = "csv list of algorithm names to assess",
         type = str,
         required = False,
         default = None
