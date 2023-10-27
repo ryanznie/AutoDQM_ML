@@ -181,3 +181,4 @@ algorithm.predict()
 
 # Save model and new df with score zipped in
 algorithm.save(histograms = histograms, tag = args.tag, algorithm = args.algorithm, reco_assess_plots = args.reco_assess_plots)
+#algorithm.save()

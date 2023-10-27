@@ -135,20 +135,12 @@ class AnomalyDetectionAlgorithm():
             awkward.to_parquet(self.df, output_parquet)
             logger.info("[AnomalyDetectionAlgorithm : save] Saving output for plot assessment '%s'." % (output_parquet))
 
-        columns_to_remove = list(histograms.keys())
-        reco_columns = [hist_name + "_reco_" + tag for hist_name in columns_to_remove]
-        score_columns = [hist_name + "_score_" + tag for hist_name in columns_to_remove]
-        rename_columns_dict = {old_col : new_col for old_col, new_col in zip(score_columns, columns_to_remove)}
-        columns_to_remove = columns_to_remove + reco_columns
+        desired_hists_for_study = list(histograms.keys())
+        score_columns = [hist_name + "_score_" + tag for hist_name in desired_hists_for_study]
+        columns_to_keep = ['run_number', 'year', 'label'] + score_columns
+        filtered_fields = {field: self.df[field] for field in self.df.fields if field in columns_to_keep}
         
-        filtered_fields = {field: self.df[field] for field in self.df.fields if field not in columns_to_remove}
         self.df = awkward.zip(filtered_fields)
-
-        #filtered_fields_for_assess_plots = {field: self.df[field] for field in self.df.fields if field not in score_columns}
-        #new_df = awkward.zip(filtered_fields_for_assess_plots)
-
-        for old_name, new_name in rename_columns_dict.items():
-            self.df = awkward.with_field(self.df, self.df[old_name], new_name)
 
         if algorithm.lower() in ["ae","autoencoder"]:
             algo_name = "ae"

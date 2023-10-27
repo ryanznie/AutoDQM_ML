@@ -72,7 +72,6 @@ def main(args):
   if algorithm_name == "BETAB": algorithm_name = "Beta_Binomial"
 
   sse_df = sse_df.loc[:,~sse_df.columns.duplicated()].copy()
-  
   hist_cols = [col for col in sse_df.columns if '_score_' in col]
   hist_dict = {each_hist: "max" for each_hist in hist_cols}
 
@@ -133,15 +132,17 @@ def main(args):
 
   tMHF_ROC_good_X = sorted(tMHF_ROC_good_X)
   tMHF_ROC_bad_Y = sorted(tMHF_ROC_bad_Y)
-  print("Mean values")
-  print(tMHF_ROC_good_X)
-  print(tMHF_ROC_bad_Y)
+  # commented out but keep for the aggregated scores plots
+  #print("Mean values")
+  #print(tMHF_ROC_good_X)
+  #print(tMHF_ROC_bad_Y)
 
   fig, axs = plt.subplots(ncols=2,nrows=1,figsize=(12,6))
 
   axs[1].set_xlabel('Fraction of good runs with at least N histogram flags')
   axs[1].set_ylabel('Fraction of bad runs with at least N histogram flags')
-  # keeping this info as it's used in the aggregated plot
+
+  # commented out but keep for the aggregated scores plots
   #for jj in range(len(N_bad_hists)):
   #  print(N_bad_hists[jj])
   #  print(tFRF_ROC_good_X[jj])
