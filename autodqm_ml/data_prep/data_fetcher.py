@@ -301,7 +301,7 @@ class DataFetcher():
 
                     histograms = self.load_data(file, run_number, self.contents)
                     if len(histograms) < 5:
-                    logger.info("[DataFetcher : extract_data] Only '%s' histograms have been selected, which is a very limited list. Advise use a full set of runs outside of testing." % (len(histograms)))
+                    	logger.info("[DataFetcher : extract_data] Only '%s' histograms have been selected, which is a very limited list. Advise use a full set of runs outside of testing." % (len(histograms)))
                     if not self.data[pd]:
                         keys_list = list(histograms.keys())
                         keys_list = keys_list + ["run_number","year","label"]
