@@ -152,19 +152,19 @@ def main(args):
   axs[1].plot(tFRF_ROC_good_X[2],tFRF_ROC_bad_Y[2], '-g^', mfc='orange', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[2]))
   axs[1].axis(xmin=0,xmax=0.4,ymin=0,ymax=0.8)
   axs[1].axline((0, 0), slope=1, linestyle='--',linewidth=0.8,color='gray')
-  axs[1].annotate(algorithm_name + " FRF-ROC curve", xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
+  axs[1].annotate(algorithm_name + " RF ROC", xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
   axs[1].legend(loc='lower right')
 
   axs[0].set_xlabel('Mean number of histogram flags per good run')
   axs[0].set_ylabel('Mean number of histogram flags per bad run')
   axs[0].plot(tMHF_ROC_good_X,tMHF_ROC_bad_Y, '-rD', mfc='purple', mec='k', markersize=8, linewidth=1, label='SSE thresholds')
   axs[0].axline((0, 0), slope=1, linestyle='--',linewidth=0.8,color='gray')
-  axs[0].annotate(algorithm_name + " MHF-ROC curve", xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
-  axs[0].axis(xmin=0,xmax=15,ymin=0,ymax=45)
+  axs[0].annotate(algorithm_name + " HF ROC", xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
+  axs[0].axis(xmin=0,xmax=8,ymin=0,ymax=25)
   axs[0].legend(loc='lower right')
 
-  plt.savefig(args.output_dir + "/FRF_MHF_ROC_comparison_" + algorithm_name + ".pdf",bbox_inches='tight')
-  print("SAVED: " + args.output_dir + "/FRF_MHF_ROC_comparison_" + algorithm_name + ".pdf")
+  plt.savefig(args.output_dir + "/RF_HF_ROC_comparison_" + algorithm_name + ".pdf",bbox_inches='tight')
+  print("SAVED: " + args.output_dir + "/RF_HF_ROC_comparison_" + algorithm_name + ".pdf")
 
 if __name__ == "__main__":
   args = parse_arguments()
