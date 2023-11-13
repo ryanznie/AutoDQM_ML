@@ -4,7 +4,7 @@
 ## Description
 This repository contains tools relevant for training and evaluating anomaly detection algorithms on CMS DQM data.
 Core code is contained in `autodqm_ml`, core scripts are contained in `scripts` and some helpful examples are in `examples`.
-See the README of each subdirectory for more information on each.
+See the README of each subdirectory for more information on each. A more in depth tutorial of the tool can be found [here](https://autodqm.github.io/autodqm_ml.github.io/). 
 
 ## Installation
 **1. Clone repository**
@@ -123,7 +123,7 @@ python scripts/train.py --input_file "data_fetched/pretraining/myOutputFile.parq
 ```
 Here, the full set or subset of histograms as feature in your `myHistList.json` file is entered as an argument. A quick way to obtain this list is to run the command
 ```
-python scripts/json_to_string.py -i metadata/histogram_lists/myHistList.json
+python scripts/json_to_string.py -i metadata/histogram_lists/myHistList.json -d "<detector>"
 ```
 FOR SMALL ORIGINAL V RECO STUDIES: If interested in using the `scripts/assess.py` macro to generate plots comparing original and reconstructed histogram distributions (i.e. the original assessment version of the repo), add the argument `--reco_assess_plots True` to the `scripts/train.py` stage to output a parquet file containing the relevant histogram information to do this. This is recommended for a subset of the runs fetched, and a subset of the histograms fetched, due to the exhaustive nature of generating the plots. A typical plotting assessment command for this would be
 ```
