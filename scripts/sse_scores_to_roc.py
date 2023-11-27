@@ -11,7 +11,7 @@ import numpy as np
 import glob
 import os
 import matplotlib.pyplot as plt
-
+import sys
 import json
 import argparse
 import awkward
@@ -64,8 +64,10 @@ def count_fraction_runs_above(Fdf, Fthreshold_list, N_bad_hists):
 
 def main(args):
   os.system("mkdir -p %s/" % args.output_dir)
+  arguments = sys.argv
   with open(args.output_dir + '/commands_sse_scores_to_roc.txt', 'w') as f:
-    f.write(str(args))
+    for arg in arguments:
+      f.write(arg + ' ')
 
   sse_df = pd.read_csv(args.input_file)
   algorithm_name = str(sse_df['algo'].iloc[0]).upper()
