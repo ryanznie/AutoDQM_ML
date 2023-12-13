@@ -11,6 +11,7 @@ import numpy as np
 import glob
 import os
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 import json
 import argparse
@@ -66,7 +67,9 @@ def main(args):
   os.system("mkdir -p %s/" % args.output_dir)
   with open(args.output_dir + '/commands_sse_scores_to_roc.txt', 'w') as f:
     f.write(str(args))
-
+  
+  print("--------------------------------")
+  print('[1/5] Reading files...')
   sse_df = pd.read_csv(args.input_file)
   algorithm_name = str(sse_df['algo'].iloc[0]).upper()
   if algorithm_name == "BETAB": algorithm_name = "Beta_Binomial"
@@ -84,13 +87,14 @@ def main(args):
   sse_df_bad = sse_df.loc[sse_df['label'] == 1].reset_index()
   sse_df_good = sse_df_good[['run_number'] + hist_cols]
   sse_df_bad = sse_df_bad[['run_number'] + hist_cols]
-
+  
+  print("[2/5] Iterating through histogram columns:")
   # new threshold cut-offs per Si's recommendations
   # 0th cut-off at 1st highest SSE + (1st - 2nd highest)*0.5
   # 1st cut-off at mean<1st, 2nd> highest SSE
   # Nth cut-off at mean<Nth, N+1th> highest SSE
   cutoffs_across_hists = []
-  for histogram in hist_cols:
+  for histogram in tqdm(hist_cols):
     sse_ordered = sorted(sse_df_good[histogram], reverse=True)
     cutoff_0 = sse_ordered[0] + 0.5*(sse_ordered[0] - sse_ordered[1])
     cutoff_thresholds = []
@@ -99,17 +103,19 @@ def main(args):
       cutoff_ii = 0.5*(sse_ordered[ii]+sse_ordered[ii+1])
       cutoff_thresholds.append(cutoff_ii)
     cutoffs_across_hists.append(cutoff_thresholds)
-
+   
   cutoffs_across_hists = np.array(cutoffs_across_hists)
 
   N_bad_hists = [5,3,1]
   tFRF_ROC_good_X = []
   tFRF_ROC_bad_Y = []
 
-  for nbh_ii in N_bad_hists:
+  print(f'[3/5] Iterating through N_bad_hists ({len(N_bad_hists)}):')
+  for idx, nbh_ii in enumerate(N_bad_hists):
+    print(f'+++++[{idx+1}/{len(N_bad_hists)}] - N={nbh_ii}:')
     tFRF_ROC_good_X_init = []
     tFRF_ROC_bad_Y_init = []
-    for cutoff_index in range(len(cutoffs_across_hists[0,:])):
+    for cutoff_index in tqdm(range(len(cutoffs_across_hists[0,:]))):
       t_cutoff_index_g_FRF_rc = count_fraction_runs_above(sse_df_good, cutoffs_across_hists[:,cutoff_index], nbh_ii)
       t_cutoff_index_b_FRF_rc = count_fraction_runs_above(sse_df_bad, cutoffs_across_hists[:,cutoff_index], nbh_ii)
       tFRF_ROC_good_X_init.append(t_cutoff_index_g_FRF_rc)
@@ -120,10 +126,11 @@ def main(args):
 
     tFRF_ROC_good_X.append(tFRF_ROC_good_X_init)
     tFRF_ROC_bad_Y.append(tFRF_ROC_bad_Y_init)
-
+  
+  print("[4/5] Iterating through cutoff indices:")
   tMHF_ROC_good_X = []
   tMHF_ROC_bad_Y = []
-  for cutoff_index in range(len(cutoffs_across_hists[0,:])):
+  for cutoff_index in tqdm(range(len(cutoffs_across_hists[0,:]))):
     #if not cutoff_index % 8:
     t_cutoff_index_g_MHF_rc = count_mean_runs_above(sse_df_good, cutoffs_across_hists[:,cutoff_index])
     t_cutoff_index_b_MHF_rc = count_mean_runs_above(sse_df_bad, cutoffs_across_hists[:,cutoff_index])
@@ -136,7 +143,7 @@ def main(args):
   #print("Mean values")
   #print(tMHF_ROC_good_X)
   #print(tMHF_ROC_bad_Y)
-
+  print('[5/5] Plotting ROC Curves...')
   fig, axs = plt.subplots(ncols=2,nrows=1,figsize=(12,6))
 
   axs[1].set_xlabel('Fraction of good runs with at least N histogram flags')
@@ -152,19 +159,19 @@ def main(args):
   axs[1].plot(tFRF_ROC_good_X[2],tFRF_ROC_bad_Y[2], '-g^', mfc='orange', mec='k', markersize=8, linewidth=1, label='SSE thresholds, N = ' + str(N_bad_hists[2]))
   axs[1].axis(xmin=0,xmax=0.4,ymin=0,ymax=0.8)
   axs[1].axline((0, 0), slope=1, linestyle='--',linewidth=0.8,color='gray')
-  axs[1].annotate(algorithm_name + " FRF-ROC curve", xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
+  axs[1].annotate(algorithm_name + " RF ROC", xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
   axs[1].legend(loc='lower right')
 
   axs[0].set_xlabel('Mean number of histogram flags per good run')
   axs[0].set_ylabel('Mean number of histogram flags per bad run')
   axs[0].plot(tMHF_ROC_good_X,tMHF_ROC_bad_Y, '-rD', mfc='purple', mec='k', markersize=8, linewidth=1, label='SSE thresholds')
   axs[0].axline((0, 0), slope=1, linestyle='--',linewidth=0.8,color='gray')
-  axs[0].annotate(algorithm_name + " MHF-ROC curve", xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
-  axs[0].axis(xmin=0,xmax=15,ymin=0,ymax=45)
+  axs[0].annotate(algorithm_name + " HF ROC", xy=(0.05, 0.95), xycoords='axes fraction', xytext=(10, -10), textcoords='offset points', ha='left', va='top', fontsize=12, weight='bold')
+  axs[0].axis(xmin=0,xmax=8,ymin=0,ymax=25)
   axs[0].legend(loc='lower right')
 
-  plt.savefig(args.output_dir + "/FRF_MHF_ROC_comparison_" + algorithm_name + ".pdf",bbox_inches='tight')
-  print("SAVED: " + args.output_dir + "/FRF_MHF_ROC_comparison_" + algorithm_name + ".pdf")
+  plt.savefig(args.output_dir + "/RF_HF_ROC_comparison_" + algorithm_name + ".pdf",bbox_inches='tight')
+  print("[SAVED] " + args.output_dir + "RF_HF_ROC_comparison_" + algorithm_name + ".pdf")
 
 if __name__ == "__main__":
   args = parse_arguments()
