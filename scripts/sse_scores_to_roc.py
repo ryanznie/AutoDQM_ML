@@ -11,11 +11,11 @@ import numpy as np
 import glob
 import os
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-
+import sys
 import json
 import argparse
 import awkward
+from tqdm import tqdm
 
 from autodqm_ml.utils import expand_path
 from autodqm_ml.constants import kANOMALOUS, kGOOD
@@ -65,9 +65,11 @@ def count_fraction_runs_above(Fdf, Fthreshold_list, N_bad_hists):
 
 def main(args):
   os.system("mkdir -p %s/" % args.output_dir)
+  arguments = sys.argv
   with open(args.output_dir + '/commands_sse_scores_to_roc.txt', 'w') as f:
-    f.write(str(args))
-  
+    for arg in arguments:
+      f.write(arg + ' ')
+      
   print("--------------------------------")
   print('[1/5] Reading files...')
   sse_df = pd.read_csv(args.input_file)
